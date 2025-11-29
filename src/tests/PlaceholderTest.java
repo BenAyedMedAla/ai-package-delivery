@@ -1,53 +1,55 @@
 package tests;
 
 import code.*;
-import java.util.List;
 
 public class PlaceholderTest {
 
     public static void main(String[] args) {
-        testGenGrid();
-        testPathFinding();
-        testSolve();
+        testInitialStateFormat();
+        testTrafficFormat();
+        testSolveSingle();
         System.out.println("All tests passed!");
     }
 
-    public static void testGenGrid() {
-        String grid = DeliverySearch.GenGrid();
-        if (grid == null || grid.length() == 0) {
-            throw new AssertionError("Grid is null or empty");
-        }
-        // Basic check: starts with m n
-        String[] lines = grid.split("\n");
-        String[] mn = lines[0].split(" ");
-        int m = Integer.parseInt(mn[0]);
-        int n = Integer.parseInt(mn[1]);
-        if (m <= 0 || n <= 0) {
-            throw new AssertionError("Invalid m or n");
+    public static void testInitialStateFormat() {
+        String initialState = DeliverySearch.GenGrid();
+        if (initialState == null || initialState.isEmpty())
+            throw new AssertionError("initialState empty");
+
+        String[] parts = initialState.split(";");
+        if (parts.length < 5)
+            throw new AssertionError("initialState wrong format");
+    }
+
+    public static void testTrafficFormat() {
+        String traffic = DeliverySearch.GenTraffic();
+        if (traffic == null || traffic.isEmpty())
+            throw new AssertionError("traffic empty");
+
+        for (String e : traffic.split(";")) {
+            String[] p = e.split(",");
+            if (p.length != 5)
+                throw new AssertionError("traffic edge invalid: " + e);
         }
     }
 
-    public static void testPathFinding() {
-        // Simple 2x2 grid
-        int m = 2, n = 2;
-        int[][] traffic = {{1,1},{1,1}};
-        List<DeliverySearch.Tunnel> tunnels = List.of();
-        List<State> stores = List.of(new State(0,0));
-        List<State> customers = List.of(new State(1,1));
-        List<State> trucks = List.of(new State(0,0));
+    public static void testSolveSingle() {
+        String init = "5;5;1;1;4,4;";
+        String traffic = DeliverySearch.GenTraffic();
 
-        DeliverySearch ds = new DeliverySearch(m, n, traffic, tunnels, stores, customers, trucks);
-        GenericSearch.SearchResult<State, Action> result = ds.path(new State(0,0), new State(1,1), Strategy.BF);
-        if (result == null || result.cost <= 0 || result.actions.size() == 0) {
-            throw new AssertionError("Invalid path result");
-        }
-    }
+        String result = DeliverySearch.solve(init, traffic, "BF", false);
 
-    public static void testSolve() {
-        String grid = DeliverySearch.GenGrid();
-        String result = DeliverySearch.solve(grid, "", Strategy.BF, false);
-        if (result == null || !result.contains("Total cost")) {
-            throw new AssertionError("Invalid solve result");
+        if (result == null || result.isEmpty())
+            throw new AssertionError("Solve returned null or empty");
+
+        if (!result.contains("(Truck") || !result.contains("Customer"))
+            throw new AssertionError("Solve missing pair");
+
+        String[] lines = result.split("\n");
+        for (String line : lines) {
+            String[] parts = line.split(";");
+            if (parts.length < 4)
+                throw new AssertionError("Solve output malformed: " + line);
         }
     }
 }
