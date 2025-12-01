@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 189 94% 43%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 33 100% 50%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 217 33% 25%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 142 76% 36%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
+    --ring: 189 94% 43%;
+
+    --radius: 0.75rem;
+    
+    --truck: 189 94% 43%;
+    --store: 33 100% 50%;
+    --customer: 142 76% 36%;
+    --traffic-1: 48 96% 53%;
+    --traffic-2: 45 93% 47%;
+    --traffic-3: 25 95% 53%;
+    --traffic-4: 0 84% 60%;
+    --blocked: 0 0% 20%;
+    --route: 271 91% 65%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(189 94% 43%), hsl(271 91% 65%));
+    --gradient-card: linear-gradient(180deg, hsl(217 33% 17%), hsl(217 33% 14%));
+    
+    --shadow-glow: 0 0 30px hsl(189 94% 43% / 0.3);
+    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.5);
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
