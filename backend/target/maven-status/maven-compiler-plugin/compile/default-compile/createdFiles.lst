@@ -1,15 +1,2 @@
-com\aipackagedelivery\code\Strategy.class
-com\aipackagedelivery\code\DeliverySearch$Tunnel.class
-com\aipackagedelivery\code\Main.class
-com\aipackagedelivery\code\Node.class
-com\aipackagedelivery\code\DeliverySearch$EuclideanHeuristic.class
-com\aipackagedelivery\code\GenericSearch$SearchResult.class
-com\aipackagedelivery\code\DeliverySearch$ManhattanHeuristic.class
-com\aipackagedelivery\code\DeliverySearch.class
 com\aipackagedelivery\code\GenericSearch$1.class
 com\aipackagedelivery\code\DeliverySearch$1.class
-com\aipackagedelivery\code\State.class
-com\aipackagedelivery\code\GenericSearch.class
-com\aipackagedelivery\code\DeliveryPlanner.class
-com\aipackagedelivery\code\Problem.class
-com\aipackagedelivery\code\Heuristic.class

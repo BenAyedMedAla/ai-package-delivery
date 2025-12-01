@@ -116,40 +116,95 @@ public class DeliverySearch implements Problem<State, Action> {
         return Double.POSITIVE_INFINITY; // no edge
     }
 
-    // Static method to generate random grid - returns initialState string
+    // Static method to generate random grid - returns matrix string
     public static String GenGrid() {
+        return GenGrid(2, 3);
+    }
+
+    public static String GenGrid(int numTrucks, int numCustomers) {
         int m = 5;
         int n = 5;
-        List<State> customers = List.of(new State(4, 4), new State(2, 2));
-        List<Tunnel> tunnels = List.of(new Tunnel(new State(0, 0), new State(4, 4)));
-        int P = customers.size();
-        int S = 1; // number of stores, but not used
+        int[][] traffic = new int[m][n];
+        Random rand = new Random();
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                traffic[i][j] = rand.nextInt(5); // 0-4: 0=blocked, 1-4=traffic levels
+            }
+        }
+        // Ensure start and some paths are passable
+        traffic[0][0] = rand.nextInt(4) + 1; // 1-4
+        traffic[4][4] = rand.nextInt(4) + 1;
+
+        List<Tunnel> tunnels = new ArrayList<>();
+        // Add a tunnel for demo
+        if (traffic[2][2] > 0 && traffic[0][4] > 0) {
+            tunnels.add(new Tunnel(new State(2, 2), new State(0, 4)));
+        }
+
+        List<State> stores = List.of(new State(0, 0));
+        List<State> customers = new ArrayList<>();
+        for (int i = 0; i < numCustomers; i++) {
+            int x, y;
+            do {
+                x = rand.nextInt(m);
+                y = rand.nextInt(n);
+            } while ((x == 0 && y == 0) || customers.contains(new State(x, y)) || traffic[x][y] == 0);
+            customers.add(new State(x, y));
+        }
+        List<State> trucks = new ArrayList<>();
+        for (int i = 0; i < Math.min(numTrucks, stores.size()); i++) {
+            trucks.add(stores.get(i));
+        }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(m).append(";").append(n).append(";").append(P).append(";").append(S).append(";");
+        sb.append(m).append(" ").append(n).append("\n");
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                sb.append(traffic[i][j]);
+                if (j < n-1) sb.append(" ");
+            }
+            sb.append("\n");
+        }
+        sb.append(tunnels.size()).append("\n");
+        sb.append(stores.size()).append("\n");
+        for (State s : stores) {
+            sb.append(s.x).append(" ").append(s.y).append("\n");
+        }
+        sb.append(customers.size()).append("\n");
         for (State c : customers) {
-            sb.append(c.x).append(",").append(c.y).append(",");
+            sb.append(c.x).append(" ").append(c.y).append("\n");
         }
-        if (!customers.isEmpty()) sb.setLength(sb.length() - 1); // remove last comma
-        sb.append(";");
-        for (Tunnel t : tunnels) {
-            sb.append(t.from.x).append(",").append(t.from.y).append(",").append(t.to.x).append(",").append(t.to.y).append(",");
+        sb.append(trucks.size()).append("\n");
+        for (State tr : trucks) {
+            sb.append(tr.x).append(" ").append(tr.y).append("\n");
         }
-        if (!tunnels.isEmpty()) sb.setLength(sb.length() - 1);
         return sb.toString();
     }
 
     // Generate traffic string
     public static String GenTraffic() {
-        // For simplicity, all adjacent cells with traffic 1
+        // Generate based on random traffic matrix
         StringBuilder sb = new StringBuilder();
         int m = 5, n = 5;
+        int[][] traffic = new int[m][n];
+        Random rand = new Random();
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                if (i > 0) sb.append(i).append(",").append(j).append(",").append(i-1).append(",").append(j).append(",1;");
-                if (i < m-1) sb.append(i).append(",").append(j).append(",").append(i+1).append(",").append(j).append(",1;");
-                if (j > 0) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j-1).append(",1;");
-                if (j < n-1) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j+1).append(",1;");
+                traffic[i][j] = rand.nextInt(5); // 0-4
+            }
+        }
+        // Ensure some connectivity
+        traffic[0][0] = rand.nextInt(4) + 1;
+        traffic[4][4] = rand.nextInt(4) + 1;
+
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                if (traffic[i][j] > 0) {
+                    if (i > 0 && traffic[i-1][j] > 0) sb.append(i).append(",").append(j).append(",").append(i-1).append(",").append(j).append(",").append(traffic[i-1][j]).append(";");
+                    if (i < m-1 && traffic[i+1][j] > 0) sb.append(i).append(",").append(j).append(",").append(i+1).append(",").append(j).append(",").append(traffic[i+1][j]).append(";");
+                    if (j > 0 && traffic[i][j-1] > 0) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j-1).append(",").append(traffic[i][j-1]).append(";");
+                    if (j < n-1 && traffic[i][j+1] > 0) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j+1).append(",").append(traffic[i][j+1]).append(";");
+                }
             }
         }
         if (sb.length() > 0) sb.setLength(sb.length() - 1); // remove last ;

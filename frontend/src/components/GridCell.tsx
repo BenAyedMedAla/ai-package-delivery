@@ -20,10 +20,10 @@ export const GridCell = ({ cell, row, col }: GridCellProps) => {
   };
 
   const getIcon = () => {
+    if (cell.hasTruck) return <Truck className="w-5 h-5 text-truck" />;
     if (cell.type === "store") return <Store className="w-6 h-6 text-background" />;
     if (cell.type === "customer") return <User className="w-6 h-6 text-background" />;
     if (cell.type === "blocked") return <X className="w-6 h-6 text-foreground/50" />;
-    if (cell.hasTruck) return <Truck className="w-5 h-5 text-truck" />;
     return null;
   };
 

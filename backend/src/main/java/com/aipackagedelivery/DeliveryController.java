@@ -13,27 +13,17 @@ import java.util.*;
 public class DeliveryController {
 
     @GetMapping("/generateGrid")
-    public ResponseEntity<Map<String, Object>> generateGrid() {
+    public ResponseEntity<Map<String, Object>> generateGrid(
+            @RequestParam(defaultValue = "2") int numTrucks,
+            @RequestParam(defaultValue = "3") int numCustomers) {
         try {
-            String initialState = DeliverySearch.GenGrid();
+            String initialState = DeliverySearch.GenGrid(numTrucks, numCustomers);
             String traffic = DeliverySearch.GenTraffic();
             Map<String, Object> response = new HashMap<>();
             response.put("grid", initialState);
             response.put("traffic", traffic);
-            // Parse tunnels from initialState
-            String[] parts = initialState.split(";");
-            if (parts.length > 5) {
-                String[] tunnelStrs = parts[5].split(",");
-                List<String> tunnels = new ArrayList<>();
-                for (int i = 0; i < tunnelStrs.length; i += 4) {
-                    if (i + 3 < tunnelStrs.length) {
-                        tunnels.add(tunnelStrs[i] + "," + tunnelStrs[i+1] + "," + tunnelStrs[i+2] + "," + tunnelStrs[i+3]);
-                    }
-                }
-                response.put("tunnels", tunnels);
-            } else {
-                response.put("tunnels", new ArrayList<>());
-            }
+            // Parse tunnels from initialState (but since GenGrid returns matrix, tunnels are included)
+            response.put("tunnels", new ArrayList<>()); // For now
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "Failed to generate grid: " + e.getMessage()));
@@ -43,7 +33,7 @@ public class DeliveryController {
     @PostMapping("/planRoutes")
     public ResponseEntity<Map<String, Object>> planRoutes(@RequestBody Map<String, String> request) {
         try {
-            String initialState = request.get("initialState");
+            String initialState = request.get("initialState").replace("\\n", "\n");
             String traffic = request.get("traffic");
             String strategyStr = request.get("strategy");
 

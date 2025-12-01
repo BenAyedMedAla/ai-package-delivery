@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Activity, Clock, TrendingUp, Route } from "lucide-react";
 
 // Sample performance data
-const performanceData = [
+const defaultPerformanceData = [
   {
     strategy: "BFS",
     pathCost: 24,
@@ -27,7 +27,24 @@ const performanceData = [
   },
 ];
 
-export const PerformanceMetrics = () => {
+interface PerformanceEntry {
+  strategy: string;
+  pathCost: number;
+  nodesExpanded: number;
+  timeTaken: string;
+  success: boolean;
+}
+
+interface PerformanceMetricsProps {
+  performanceData?: PerformanceEntry[];
+}
+
+export const PerformanceMetrics = ({ performanceData = defaultPerformanceData }: PerformanceMetricsProps) => {
+  const totalRoutes = performanceData.length;
+  const avgCost = performanceData.length > 0 ? (performanceData.reduce((sum, d) => sum + d.pathCost, 0) / performanceData.length).toFixed(1) : "0";
+  const avgNodes = performanceData.length > 0 ? (performanceData.reduce((sum, d) => sum + d.nodesExpanded, 0) / performanceData.length).toFixed(1) : "0";
+  const avgTime = performanceData.length > 0 ? (performanceData.reduce((sum, d) => parseFloat(d.timeTaken.replace('ms', '')), 0) / performanceData.length).toFixed(1) + "ms" : "0ms";
+
   return (
     <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border shadow-[var(--shadow-card)]">
       <div className="mb-6">
@@ -44,7 +61,7 @@ export const PerformanceMetrics = () => {
             <Route className="w-5 h-5 text-route" />
             <span className="text-muted-foreground text-sm">Total Routes</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">3</p>
+          <p className="text-2xl font-bold text-foreground">{totalRoutes}</p>
         </div>
 
         <div className="bg-background/50 p-4 rounded-lg border border-border">
@@ -52,7 +69,7 @@ export const PerformanceMetrics = () => {
             <TrendingUp className="w-5 h-5 text-accent" />
             <span className="text-muted-foreground text-sm">Avg Path Cost</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">21.3</p>
+          <p className="text-2xl font-bold text-foreground">{avgCost}</p>
         </div>
 
         <div className="bg-background/50 p-4 rounded-lg border border-border">
@@ -60,7 +77,7 @@ export const PerformanceMetrics = () => {
             <Activity className="w-5 h-5 text-primary" />
             <span className="text-muted-foreground text-sm">Avg Nodes</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">34.7</p>
+          <p className="text-2xl font-bold text-foreground">{avgNodes}</p>
         </div>
 
         <div className="bg-background/50 p-4 rounded-lg border border-border">
@@ -68,7 +85,7 @@ export const PerformanceMetrics = () => {
             <Clock className="w-5 h-5 text-secondary" />
             <span className="text-muted-foreground text-sm">Avg Time</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">9.7ms</p>
+          <p className="text-2xl font-bold text-foreground">{avgTime}</p>
         </div>
       </div>
 
