@@ -2,6 +2,7 @@ package com.aipackagedelivery;
 
 import com.aipackagedelivery.code.DeliverySearch;
 import com.aipackagedelivery.code.Strategy;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,44 +31,53 @@ public class DeliveryController {
         }
     }
 
-    @PostMapping("/planRoutes")
-    public ResponseEntity<Map<String, Object>> planRoutes(@RequestBody Map<String, String> request) {
+    public static class PlanRequest {
+        private String initialState;
+        private String traffic;
+        private String strategy;
+
+        public String getInitialState() { return initialState; }
+        public void setInitialState(String initialState) { this.initialState = initialState; }
+        public String getTraffic() { return traffic; }
+        public void setTraffic(String traffic) { this.traffic = traffic; }
+        public String getStrategy() { return strategy; }
+        public void setStrategy(String strategy) { this.strategy = strategy; }
+    }
+
+    @PostMapping(value = "/planRoutes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> planRoutes(@RequestParam String initialState, @RequestParam String traffic, @RequestParam String strategy) {
         try {
-            String initialState = request.get("initialState").replace("\\n", "\n");
-            String traffic = request.get("traffic");
-            String strategyStr = request.get("strategy");
+            initialState = initialState.replace("\\n", "\n");
+            String strategyStr = strategy;
 
             if (initialState == null || traffic == null || strategyStr == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Missing required parameters: initialState, traffic, strategy"));
+                return ResponseEntity.badRequest().body("Missing required parameters: initialState, traffic, strategy");
             }
 
-            Strategy strategy = Strategy.fromString(strategyStr);
-            String result = DeliverySearch.solve(initialState, traffic, strategyStr, false);
+            DeliverySearch ds = DeliverySearch.fromString(initialState);
 
-            // Parse result into JSON
-            List<Map<String, Object>> routes = new ArrayList<>();
-            String[] lines = result.split("\n");
-            for (String line : lines) {
-                if (line.trim().isEmpty()) continue;
-                String[] parts = line.split(";");
-                if (parts.length >= 4) {
-                    Map<String, Object> route = new HashMap<>();
-                    route.put("truck", parts[0]);
-                    route.put("customer", parts[1]);
-                    route.put("path", parts[2]);
-                    route.put("cost", Integer.parseInt(parts[3]));
-                    route.put("nodesExpanded", Integer.parseInt(parts[4]));
-                    routes.add(route);
-                }
+            // Run all strategies and build output like terminal
+            StringBuilder sb = new StringBuilder();
+            Strategy[] strategies = {Strategy.BF, Strategy.DF, Strategy.ID, Strategy.UC, Strategy.GR1, Strategy.GR2, Strategy.AS1, Strategy.AS2};
+            String[] names = {"BF", "DF", "ID", "UC", "GR1", "GR2", "AS1", "AS2"};
+
+            for (int i = 0; i < strategies.length; i++) {
+                long start = System.nanoTime();
+                String result = ds.plan(strategies[i], false);
+                long time = (System.nanoTime() - start) / 1_000_000; // ms
+                sb.append(result.trim()).append(" (").append(time).append("ms) ").append(names[i]).append(" | ");
             }
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("routes", routes);
-            return ResponseEntity.ok(response);
+            // Remove last " | "
+            if (sb.length() > 3) {
+                sb.setLength(sb.length() - 3);
+            }
+
+            return ResponseEntity.ok(sb.toString());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid strategy: " + e.getMessage()));
+            return ResponseEntity.badRequest().body("Invalid strategy: " + e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to plan routes: " + e.getMessage()));
+            return ResponseEntity.status(500).body("Failed to plan routes: " + e.getMessage());
         }
     }
 

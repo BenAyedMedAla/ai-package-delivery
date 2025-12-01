@@ -68,7 +68,7 @@ const parseGridData = (gridData: GridData | null, routes: Route[]): GridCellData
   const numTrucks = parseInt(lines[idx++]);
   for (let i = 0; i < numTrucks; i++) {
     const [x, y] = lines[idx++].split(' ').map(Number);
-    if (x >= 0 && x < m && y >= 0 && y < n && grid[x][y].type === "road") {
+    if (x >= 0 && x < m && y >= 0 && y < n) {
       grid[x][y].hasTruck = true;
       grid[x][y].truckId = i;
     }

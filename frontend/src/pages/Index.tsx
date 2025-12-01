@@ -58,6 +58,7 @@ const Index = () => {
   const [gridData, setGridData] = useState<GridData | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [performanceData, setPerformanceData] = useState<PerformanceEntry[]>([]);
+  const [resultText, setResultText] = useState<string>("");
 
   const strategyMap = {
     "BFS": "BF",
@@ -74,6 +75,7 @@ const Index = () => {
       setGridData(data);
       setRoutes([]);
       setPerformanceData([]);
+      setResultText("");
     } catch (error) {
       console.error('Error generating grid:', error);
     }
@@ -84,48 +86,29 @@ const Index = () => {
 
     setIsRunning(true);
     try {
+      const formData = new FormData();
+      formData.append('initialState', gridData.grid.replace(/\n/g, '\\n'));
+      formData.append('traffic', gridData.traffic);
+      formData.append('strategy', strategyMap[selectedStrategy]);
+
       const response = await fetch('http://localhost:8080/api/planRoutes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          initialState: gridData.grid.replace(/\n/g, '\\n'),
-          traffic: gridData.traffic,
-          strategy: strategyMap[selectedStrategy]
-        })
+        body: formData
       });
-      const data: PlanResponse = await response.json();
-
-      // Parse routes
-      const parsedRoutes: Route[] = data.routes.map(route => {
-        // Parse assignment like "(Truck0,Customer0)" or similar
-        const assign = route.assignment.replace(/[()]/g, '');
-        const parts = assign.split(',');
-        const truck = parts[0].trim();
-        const customer = parts[1].trim();
-        return {
-          truck,
-          customer,
-          path: route.path,
-          cost: route.totalCost, // use totalCost as cost
-          nodesExpanded: 0 // not provided, set to 0
-        };
-      });
-      setRoutes(parsedRoutes);
-
-      // Parse performance data
-      const parsedPerformance: PerformanceEntry[] = data.performanceTable.map(entry => ({
-        strategy: entry.strategy,
-        pathCost: entry.pathCost,
-        nodesExpanded: entry.nodesExpanded,
-        timeTaken: entry.timeTaken,
-        success: entry.status === "Success"
-      }));
-      setPerformanceData(parsedPerformance);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`API Error: ${response.status} ${errorText}`);
+      }
+      const data = await response.text();
+      console.log('API Response:', data);
+      setResultText(data);
+      setRoutes([]);
+      setPerformanceData([]);
 
     } catch (error) {
       console.error('Error planning routes:', error);
+      setResultText(`Error: ${error.message}`);
     } finally {
       setIsRunning(false);
     }
@@ -135,6 +118,7 @@ const Index = () => {
     setGridData(null);
     setRoutes([]);
     setPerformanceData([]);
+    setResultText("");
     setIsRunning(false);
   };
 
@@ -152,10 +136,18 @@ const Index = () => {
         </p>
       </header>
 
+      {resultText && (
+        <div className="bg-card p-6 rounded-lg border shadow-sm mb-6">
+          <h3 className="text-lg font-semibold mb-4">Route Planning Results</h3>
+          <pre className="text-sm font-mono bg-muted p-4 rounded overflow-x-auto whitespace-pre-wrap">
+            {resultText}
+          </pre>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <DeliveryGrid gridData={gridData} routes={routes} />
-          <PerformanceMetrics performanceData={performanceData} />
         </div>
 
         <div>

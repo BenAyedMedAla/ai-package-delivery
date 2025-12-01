@@ -369,7 +369,7 @@ public class DeliverySearch implements Problem<State, Action> {
             int nodes = Integer.parseInt(parts[2]);
             totalCost += pathCost;
             sb.append("(Truck").append(truckIdx).append(",Customer").append(custIdx).append(");")
-              .append(actions).append(";").append((int)pathCost).append(";").append((int)totalCost).append("\n");
+              .append(actions).append(";").append((int)pathCost).append(";").append((int)totalCost).append(" | ");
             if (visualize) {
                 System.out.println("Truck " + truckIdx + " to Customer " + custIdx + ": " + actions + " cost=" + (int)pathCost + " nodes=" + nodes);
             }
