@@ -1,4 +1,4 @@
-package code;
+package com.aipackagedelivery.code;
 
 public enum Strategy {
     BF,   // Breadth-First

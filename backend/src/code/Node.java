@@ -1,4 +1,4 @@
-package code;
+package com.aipackagedelivery.code;
 
 public class Node<State, Action> {
 
