@@ -54,31 +54,40 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         return state.equals(goal);
     }
 
-    @Override
-    public List<Action> actions(State state) {
-        List<Action> actions = new ArrayList<>();
-        Map<State, Integer> neighbors = edgeTraffic.get(state);
-        if (neighbors != null) {
-            State up = new State(state.x-1, state.y);
-            if (neighbors.containsKey(up)) actions.add(Action.UP);
-            State down = new State(state.x+1, state.y);
-            if (neighbors.containsKey(down)) actions.add(Action.DOWN);
-            State left = new State(state.x, state.y-1);
-            if (neighbors.containsKey(left)) actions.add(Action.LEFT);
-            State right = new State(state.x, state.y+1);
-            if (neighbors.containsKey(right)) actions.add(Action.RIGHT);
-        }
+   @Override
 
-        // Check for tunnel
-        for (Tunnel tunnel : tunnels) {
-            if (state.equals(tunnel.from) || state.equals(tunnel.to)) {
-                actions.add(Action.TUNNEL);
-                break; // assume only one tunnel per position
-            }
-        }
+public List<Action> actions(State state) {
+    List<Action> actions = new ArrayList<>();
+    Map<State, Integer> neighbors = edgeTraffic.get(state);
 
-        return actions;
+    // System.out.println("State: " + state);
+    if (neighbors != null) {
+        // Check for each valid move (up, down, left, right)
+        State up = new State(state.x-1, state.y);
+        if (neighbors.containsKey(up) && neighbors.get(up) != 0) actions.add(Action.UP);
+        State down = new State(state.x+1, state.y);
+        if (neighbors.containsKey(down) && neighbors.get(down) != 0) actions.add(Action.DOWN);
+        State left = new State(state.x, state.y-1);
+        if (neighbors.containsKey(left) && neighbors.get(left) != 0) actions.add(Action.LEFT);
+        State right = new State(state.x, state.y+1);
+        if (neighbors.containsKey(right) && neighbors.get(right) != 0) actions.add(Action.RIGHT);
     }
+
+    // // Debug the available actions
+    // System.out.println("Actions for " + state + ": " + actions);
+
+    // Check for tunnel
+    for (Tunnel tunnel : tunnels) {
+        if (state.equals(tunnel.from) || state.equals(tunnel.to)) {
+            actions.add(Action.TUNNEL);
+            break;
+        }
+    }
+
+    return actions;
+}
+
+
 
     @Override
     public State result(State state, Action action) {
@@ -117,39 +126,70 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
     }
 
     // Static method to generate random grid - returns initialState string
-    public static String GenGrid() {
-        int m = 5;
-        int n = 5;
-        List<State> customers = List.of(new State(4, 4), new State(2, 2));
-        List<Tunnel> tunnels = List.of(new Tunnel(new State(0, 0), new State(4, 4)));
-        int P = customers.size();
-        int S = 1; // number of stores, but not used
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(m).append(";").append(n).append(";").append(P).append(";").append(S).append(";");
-        for (State c : customers) {
-            sb.append(c.x).append(",").append(c.y).append(",");
-        }
-        if (!customers.isEmpty()) sb.setLength(sb.length() - 1); // remove last comma
-        sb.append(";");
-        for (Tunnel t : tunnels) {
-            sb.append(t.from.x).append(",").append(t.from.y).append(",").append(t.to.x).append(",").append(t.to.y).append(",");
-        }
-        if (!tunnels.isEmpty()) sb.setLength(sb.length() - 1);
-        return sb.toString();
+   public static String GenGrid(int m, int n, int numCustomers, int numStores) {
+    List<State> customers = new ArrayList<>();
+    Set<String> used = new HashSet<>();
+    Random rand = new Random();
+    for (int i = 0; i < numCustomers; i++) {
+        int x, y;
+        do {
+            x = rand.nextInt(m);
+            y = rand.nextInt(n);
+        } while (used.contains(x + "," + y));
+        used.add(x + "," + y);
+        customers.add(new State(x, y));
     }
 
+    List<State> stores = new ArrayList<>();
+    for (int i = 0; i < numStores; i++) {
+        if (i == 0) stores.add(new State(0, 0));
+        else if (i == 1) stores.add(new State(m - 1, n - 1));
+        else if (i == 2) stores.add(new State(m - 1, 0));
+    }
+
+    List<Tunnel> tunnels = new ArrayList<>();
+    if (numStores > 1) {
+        State from = stores.get(0);
+        int tx, ty;
+        do {
+            tx = rand.nextInt(m);
+            ty = rand.nextInt(n);
+        } while (used.contains(tx + "," + ty));
+        State to = new State(tx, ty);
+        tunnels.add(new Tunnel(from, to));
+    }
+
+    StringBuilder sb = new StringBuilder();
+    sb.append(m).append(";").append(n).append(";").append(numCustomers).append(";").append(numStores).append(";");
+    for (State c : customers) {
+        sb.append(c.x).append(",").append(c.y).append(",");
+    }
+    if (!customers.isEmpty()) sb.setLength(sb.length() - 1); // remove last comma
+    sb.append(";");
+    for (State s : stores) {
+        sb.append(s.x).append(",").append(s.y).append(",");
+    }
+    if (!stores.isEmpty()) sb.setLength(sb.length() - 1); // remove last comma
+    sb.append(";");
+    for (Tunnel t : tunnels) {
+        sb.append(t.from.x).append(",").append(t.from.y).append(",").append(t.to.x).append(",").append(t.to.y).append(",");
+    }
+    if (!tunnels.isEmpty()) sb.setLength(sb.length() - 1);
+
+    return sb.toString();
+}
+
     // Generate traffic string
-    public static String GenTraffic() {
-        // For simplicity, all adjacent cells with traffic 1
+    public static String GenTraffic(int m, int n) {
+        // Generate random traffic levels 1-4 for adjacent cells
         StringBuilder sb = new StringBuilder();
-        int m = 5, n = 5;
+        Random rand = new Random();
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                if (i > 0) sb.append(i).append(",").append(j).append(",").append(i-1).append(",").append(j).append(",1;");
-                if (i < m-1) sb.append(i).append(",").append(j).append(",").append(i+1).append(",").append(j).append(",1;");
-                if (j > 0) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j-1).append(",1;");
-                if (j < n-1) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j+1).append(",1;");
+                if (i > 0) sb.append(i).append(",").append(j).append(",").append(i-1).append(",").append(j).append(",").append(rand.nextInt(4)+1).append(";");
+                if (i < m-1) sb.append(i).append(",").append(j).append(",").append(i+1).append(",").append(j).append(",").append(rand.nextInt(4)+1).append(";");
+                if (j > 0) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j-1).append(",").append(rand.nextInt(4)+1).append(";");
+                if (j < n-1) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j+1).append(",").append(rand.nextInt(4)+1).append(";");
             }
         }
         if (sb.length() > 0) sb.setLength(sb.length() - 1); // remove last ;

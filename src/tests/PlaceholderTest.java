@@ -12,7 +12,7 @@ public class PlaceholderTest {
     }
 
     public static void testInitialStateFormat() {
-        String initialState = DeliverySearch.GenGrid();
+        String initialState = DeliverySearch.GenGrid(5, 5, 2, 1);
         if (initialState == null || initialState.isEmpty())
             throw new AssertionError("initialState empty");
 
@@ -22,7 +22,7 @@ public class PlaceholderTest {
     }
 
     public static void testTrafficFormat() {
-        String traffic = DeliverySearch.GenTraffic();
+        String traffic = DeliverySearch.GenTraffic(5, 5);
         if (traffic == null || traffic.isEmpty())
             throw new AssertionError("traffic empty");
 
@@ -35,7 +35,7 @@ public class PlaceholderTest {
 
     public static void testSolveSingle() {
         String init = "5;5;1;1;4,4;";
-        String traffic = DeliverySearch.GenTraffic();
+        String traffic = DeliverySearch.GenTraffic(5, 5);
 
         String result = DeliverySearch.solve(init, traffic, "BF", false);
 
