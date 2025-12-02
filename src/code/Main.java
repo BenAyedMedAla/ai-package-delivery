@@ -42,21 +42,19 @@ public class Main {
         System.out.println("Generated traffic:");
         System.out.println(traffic);
 
-        if ("all".equalsIgnoreCase(strategyInput)) {
-            // Run all strategies
-            Strategy[] strategies = Strategy.values();
-            String[] names = {"BF", "DF", "ID", "UC", "GR1", "GR2", "AS1", "AS2"};
-            System.out.println("=== Performance Comparison ===");
-            System.out.println("Strategy | Result");
-            System.out.println("---------|-------");
+       if ("all".equalsIgnoreCase(strategyInput)) {
+    String[] names = {"BF", "DF", "ID", "UC", "GR1", "GR2", "AS1", "AS2"};
+    System.out.println("=== Performance Comparison ===");
+    System.out.println("Strategy | Result (time ms)");
+    System.out.println("---------|------------------");
 
-            for (int i = 0; i < strategies.length; i++) {
-                long start = System.nanoTime();
-                String result = DeliverySearch.solve(initialState, traffic, names[i], false);
-                long time = (System.nanoTime() - start) / 1_000_000; // ms
-                System.out.printf("%-8s | %s (%dms)%n", names[i], result.replace("\n", " | "), time);
-            }
-        } else {
+    for (String name : names) {
+        long start = System.nanoTime();
+        String result = DeliverySearch.solve(initialState, traffic, name, false);
+        long time = (System.nanoTime() - start) / 1_000_000; // ms
+        System.out.printf("%-5s | %s (%dms)%n", name, result.replace("\n", " | "), time);
+    }
+}else {
             // Run a specific strategy
             try {
                 Strategy strategy = Strategy.fromString(strategyInput);
