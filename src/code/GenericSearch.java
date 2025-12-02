@@ -149,68 +149,92 @@ public class GenericSearch {
 
     // ================== Iterative Deepening Search ==================
 
-    private static <State, Action> SearchResult<State, Action> iterativeDeepeningSearch(
-            Problem<State, Action> problem) {
+// ================== Iterative Deepening Search ==================
 
-        int depth = 0;
-        while (true) {
-            SearchResult<State, Action> result = depthLimitedSearch(problem, depth);
-            if (result.cost != Double.POSITIVE_INFINITY) {
-                return result;
-            }
-            depth++;
+private static <State, Action> SearchResult<State, Action> iterativeDeepeningSearch(
+        Problem<State, Action> problem) {
+
+    int depth = 0;
+    int totalNodesExpanded = 0;
+    
+    while (true) {
+        SearchResult<State, Action> result = depthLimitedSearch(problem, depth);
+        totalNodesExpanded += result.nodesExpanded;
+        
+        if (result.cost != Double.POSITIVE_INFINITY) {
+            // Found solution - return with total nodes expanded
+            return new SearchResult<>(result.actions, result.cost, totalNodesExpanded);
+        }
+        depth++;
+        
+        // Safety limit to prevent infinite loop
+        if (depth > 1000) {
+            return new SearchResult<>(Collections.emptyList(), 
+                                    Double.POSITIVE_INFINITY, 
+                                    totalNodesExpanded);
         }
     }
+}
 
-    private static <State, Action> SearchResult<State, Action> depthLimitedSearch(
-            Problem<State, Action> problem, int limit) {
+private static <State, Action> SearchResult<State, Action> depthLimitedSearch(
+        Problem<State, Action> problem, int limit) {
 
-        Node<State, Action> root =
-                new Node<>(problem.initialState(), null, null, 0, 0.0);
+    Node<State, Action> root = new Node<>(problem.initialState(), null, null, 0, 0.0);
+    Deque<Node<State, Action>> frontier = new ArrayDeque<>();
+    frontier.push(root);
 
-        Deque<Node<State, Action>> frontier = new ArrayDeque<>();
-        frontier.push(root);
+    // NO explored set for ID - only check for cycles in current path
+    int nodesExpanded = 0;
 
-        Set<State> explored = new HashSet<>();
-        explored.add(root.state);
+    while (!frontier.isEmpty()) {
+        Node<State, Action> node = frontier.pop();
 
-        int nodesExpanded = 0;
+        // Goal test BEFORE expansion
+        if (problem.isGoal(node.state)) {
+            List<Action> plan = extractPlan(node);
+            return new SearchResult<>(plan, node.pathCost, nodesExpanded);
+        }
 
-        while (!frontier.isEmpty()) {
-            Node<State, Action> node = frontier.pop();
+        nodesExpanded++;
 
-            if (problem.isGoal(node.state)) {
-                List<Action> plan = extractPlan(node);
-                return new SearchResult<>(plan, node.pathCost, nodesExpanded);
-            }
-
-            nodesExpanded++;
-
-            if (node.depth < limit) {
-                for (Action action : problem.actions(node.state)) {
-                    State childState = problem.result(node.state, action);
-
-                    if (!explored.contains(childState)) {
-                        explored.add(childState);
-                        double stepCost = problem.stepCost(node.state, action, childState);
-                        Node<State, Action> child = new Node<>(
-                                childState,
-                                node,
-                                action,
-                                node.depth + 1,
-                                node.pathCost + stepCost
-                        );
-                        frontier.push(child);
-                    }
+        // Only expand if we haven't reached depth limit
+        if (node.depth < limit) {
+            for (Action action : problem.actions(node.state)) {
+                State childState = problem.result(node.state, action);
+                
+                // Only check if childState is in current path (prevent cycles)
+                if (!isInPath(node, childState)) {
+                    double stepCost = problem.stepCost(node.state, action, childState);
+                    Node<State, Action> child = new Node<>(
+                            childState,
+                            node,
+                            action,
+                            node.depth + 1,
+                            node.pathCost + stepCost
+                    );
+                    frontier.push(child);
                 }
             }
         }
-
-        // No solution found within limit
-        return new SearchResult<>(Collections.emptyList(),
-                                  Double.POSITIVE_INFINITY,
-                                  nodesExpanded);
     }
+
+    // No solution found at this depth
+    return new SearchResult<>(Collections.emptyList(),
+                              Double.POSITIVE_INFINITY,
+                              nodesExpanded);
+}
+
+// Helper: Check if state is already in the path from root to node (cycle detection)
+private static <State, Action> boolean isInPath(Node<State, Action> node, State state) {
+    Node<State, Action> current = node;
+    while (current != null) {
+        if (current.state.equals(state)) {
+            return true;
+        }
+        current = current.parent;
+    }
+    return false;
+}
 
     // ================== Uniform Cost Search ==================
 
