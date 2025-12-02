@@ -3,7 +3,7 @@ package code;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class DeliverySearch implements Problem<State, Action> {
+public class DeliverySearch extends GenericSearch implements Problem<State, Action> {
 
     // Grid representation
     private final int m; // rows
@@ -40,8 +40,8 @@ public class DeliverySearch implements Problem<State, Action> {
     public void setPath(State start, State goal) {
         this.start = start;
         this.goal = goal;
-        if (h1 instanceof ManhattanHeuristic) ((ManhattanHeuristic) h1).setGoal(goal);
-        if (h2 instanceof EuclideanHeuristic) ((EuclideanHeuristic) h2).setGoal(goal);
+        if (h1 instanceof ManhattanHeuristic) ((ManhattanHeuristic) h1).setGoal(goal, tunnels);
+        if (h2 instanceof EuclideanHeuristic) ((EuclideanHeuristic) h2).setGoal(goal, tunnels);
     }
 
     @Override
@@ -109,11 +109,11 @@ public class DeliverySearch implements Problem<State, Action> {
         Map<State, Integer> neighbors = edgeTraffic.get(state);
         if (neighbors != null) {
             Integer trafficLevel = neighbors.get(nextState);
-            if (trafficLevel != null) {
+            if (trafficLevel != null && trafficLevel != 0) {
                 return trafficLevel;
             }
         }
-        return Double.POSITIVE_INFINITY; // no edge
+        return Double.POSITIVE_INFINITY; // no edge or blocked
     }
 
     // Static method to generate random grid - returns initialState string
@@ -279,6 +279,7 @@ public class DeliverySearch implements Problem<State, Action> {
             int dx = Integer.parseInt(e[2]);
             int dy = Integer.parseInt(e[3]);
             int t = Integer.parseInt(e[4]);
+            if (t == 0) continue; // blocked: do not add edge
             State from = new State(sx, sy);
             State to = new State(dx, dy);
             edgeTraffic.putIfAbsent(from, new HashMap<>());
@@ -286,9 +287,12 @@ public class DeliverySearch implements Problem<State, Action> {
             edgeTraffic.putIfAbsent(to, new HashMap<>());
             edgeTraffic.get(to).put(from, t);
         }
-        // Assume stores are empty, trucks at (0,0) and (1,1)
+        // Generate stores and trucks based on S
         List<State> stores = new ArrayList<>();
-        List<State> trucks = List.of(new State(0, 0), new State(1, 1));
+        if (S >= 1) stores.add(new State(0, 0));
+        if (S >= 2) stores.add(new State(m-1, n-1));
+        if (S >= 3) stores.add(new State(m-1, 0));
+        List<State> trucks = new ArrayList<>(stores);
         Heuristic<State> h1 = new ManhattanHeuristic();
         Heuristic<State> h2 = new EuclideanHeuristic();
         return new DeliverySearch(m, n, edgeTraffic, tunnels, stores, customers, trucks, h1, h2);
@@ -300,7 +304,6 @@ public class DeliverySearch implements Problem<State, Action> {
         List<int[]> assignments = planner.assign(); // list of [truckIndex, customerIndex]
 
         StringBuilder sb = new StringBuilder();
-        double totalCost = 0;
         for (int[] assign : assignments) {
             int truckIdx = assign[0];
             int custIdx = assign[1];
@@ -312,9 +315,8 @@ public class DeliverySearch implements Problem<State, Action> {
             String actions = parts[0];
             double pathCost = Double.parseDouble(parts[1]);
             int nodes = Integer.parseInt(parts[2]);
-            totalCost += pathCost;
             sb.append("(Truck").append(truckIdx).append(",Customer").append(custIdx).append(");")
-              .append(actions).append(";").append((int)pathCost).append(";").append((int)totalCost).append("\n");
+              .append(actions).append(";").append((int)pathCost).append(";").append(nodes).append("\n");
             if (visualize) {
                 System.out.println("Truck " + truckIdx + " to Customer " + custIdx + ": " + actions + " cost=" + (int)pathCost + " nodes=" + nodes);
             }
@@ -355,7 +357,7 @@ public class DeliverySearch implements Problem<State, Action> {
     private static class ManhattanHeuristic implements Heuristic<State> {
         private State goal;
 
-        public void setGoal(State goal) {
+        public void setGoal(State goal, List<Tunnel> tunnels) {
             this.goal = goal;
         }
 
@@ -368,17 +370,30 @@ public class DeliverySearch implements Problem<State, Action> {
 
     private static class EuclideanHeuristic implements Heuristic<State> {
         private State goal;
+        private List<Tunnel> tunnels;
 
-        public void setGoal(State goal) {
+        public void setGoal(State goal, List<Tunnel> tunnels) {
             this.goal = goal;
+            this.tunnels = tunnels;
         }
 
         @Override
         public double h(State state) {
             if (goal == null) return 0;
-            int dx = state.x - goal.x;
-            int dy = state.y - goal.y;
-            return Math.sqrt(dx*dx + dy*dy);
+            double direct = Math.sqrt((state.x - goal.x)*(state.x - goal.x) + (state.y - goal.y)*(state.y - goal.y));
+            double minTunnel = Double.POSITIVE_INFINITY;
+            if (tunnels != null) {
+                for (Tunnel t : tunnels) {
+                    // manhattan to t.from + euclidean from t.to to goal
+                    double viaFrom = Math.abs(state.x - t.from.x) + Math.abs(state.y - t.from.y) +
+                                     Math.sqrt((t.to.x - goal.x)*(t.to.x - goal.x) + (t.to.y - goal.y)*(t.to.y - goal.y));
+                    // manhattan to t.to + euclidean from t.from to goal
+                    double viaTo = Math.abs(state.x - t.to.x) + Math.abs(state.y - t.to.y) +
+                                   Math.sqrt((t.from.x - goal.x)*(t.from.x - goal.x) + (t.from.y - goal.y)*(t.from.y - goal.y));
+                    minTunnel = Math.min(minTunnel, Math.min(viaFrom, viaTo));
+                }
+            }
+            return Math.min(direct, minTunnel);
         }
     }
 }
