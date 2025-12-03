@@ -234,31 +234,68 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         List<int[]> assignments = planner.assign();
 
         StringBuilder sb = new StringBuilder();
+        
+        // Track current truck positions (initially at stores)
+        List<State> currentTruckPositions = new ArrayList<>(trucks);
 
         for (int[] assignment : assignments) {
             int truckIdx = assignment[0];
             int customerIdx = assignment[1];
 
-            State start = trucks.get(truckIdx);
+            State start = currentTruckPositions.get(truckIdx);
             State goal = customers.get(customerIdx);
 
-            String result = path(this, start, goal, strategy);
+            // Path from current position to customer
+            String deliveryResult = path(this, start, goal, strategy);
 
-            if (result.equals("no path;0;0")) {
+            if (deliveryResult.equals("no path;0;0")) {
                 continue;
             }
 
-            String[] parts = result.split(";");
+            String[] deliveryParts = deliveryResult.split(";");
+            int deliveryCost = Integer.parseInt(deliveryParts[1]);
+            int deliveryNodes = Integer.parseInt(deliveryParts[2]);
+
+            // Path from customer back to store
+            State storeLocation = stores.get(truckIdx);
+            String returnResult = path(this, goal, storeLocation, strategy);
+
+            int returnCost = 0;
+            int returnNodes = 0;
+            String returnPath = "";
+
+            if (!returnResult.equals("no path;0;0")) {
+                String[] returnParts = returnResult.split(";");
+                returnPath = returnParts[0];
+                returnCost = Integer.parseInt(returnParts[1]);
+                returnNodes = Integer.parseInt(returnParts[2]);
+            }
+
+            // Total cost includes delivery + return
+            int totalCost = deliveryCost + returnCost;
+            int totalNodes = deliveryNodes + returnNodes;
+
+            // Build complete path: delivery + return
+            String completePath = deliveryParts[0];
+            if (!returnPath.isEmpty()) {
+                completePath += "," + returnPath;
+            }
+
             sb.append("(Truck").append(truckIdx)
               .append(",Customer").append(customerIdx).append(");")
-              .append(parts[0]).append(";")
-              .append(parts[1]).append(";")
-              .append(parts[2]).append("\n");
+              .append(completePath).append(";")
+              .append(totalCost).append(";")
+              .append(totalNodes).append("\n");
 
             if (visualize) {
                 System.out.println("Truck " + truckIdx + " → Customer " + customerIdx + 
-                                 " : " + parts[0] + " cost=" + parts[1]);
+                                 " (Delivery: " + deliveryCost + ", Return: " + returnCost + 
+                                 ", Total: " + totalCost + ")");
+                System.out.println("  Path: " + completePath);
             }
+
+            // Truck returns to store, ready for next delivery
+            currentTruckPositions.set(truckIdx, storeLocation);
         }
 
         return sb.toString().trim();
