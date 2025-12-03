@@ -39,8 +39,8 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         if (h1 instanceof ManhattanHeuristic) {
             ((ManhattanHeuristic) h1).setGoal(goal, tunnels);
         }
-        if (h2 instanceof EuclideanHeuristic) {
-            ((EuclideanHeuristic) h2).setGoal(goal, tunnels);
+        if (h2 instanceof TrafficAwareHeuristic) {
+            ((TrafficAwareHeuristic) h2).setGoal(goal, tunnels);
         }
     }
 
@@ -202,6 +202,7 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         }
 
         // Parse traffic information
+        // FIXED: GenTraffic already generates both directions, so only add one direction
         Map<State, Map<State, Integer>> edgeTraffic = new HashMap<>();
         for (String edge : trafficStr.split(";")) {
             String[] e = edge.split(",");
@@ -214,14 +215,16 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             // Skip blocked roads (traffic = 0)
             if (cost == 0) continue;
 
+            // Only add one direction (GenTraffic already creates both)
             edgeTraffic.putIfAbsent(from, new HashMap<>());
             edgeTraffic.get(from).put(to, cost);
         }
 
         List<State> trucks = new ArrayList<>(stores);
 
+        // Use Manhattan and Traffic-Aware heuristics
         return new DeliverySearch(m, n, edgeTraffic, tunnels, stores, customers, trucks,
-                new ManhattanHeuristic(), new EuclideanHeuristic());
+                new ManhattanHeuristic(), new TrafficAwareHeuristic(1));
     }
 
     // ------------------ PLANNING ------------------
@@ -368,96 +371,5 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         
         if (sb.length() > 0) sb.setLength(sb.length() - 1);
         return sb.toString();
-    }
-
-    // ------------------ TUNNEL CLASS ------------------
-
-    public static class Tunnel {
-        public final State from;
-        public final State to;
-
-        public Tunnel(State from, State to) {
-            this.from = from;
-            this.to = to;
-        }
-
-        @Override
-        public String toString() {
-            return "Tunnel[" + from + " <-> " + to + "]";
-        }
-    }
-
-    // ------------------ HEURISTICS ------------------
-
-    private static class ManhattanHeuristic implements Heuristic<State> {
-        private State goal;
-        private List<Tunnel> tunnels;
-
-        public void setGoal(State goal, List<Tunnel> tunnels) {
-            this.goal = goal;
-            this.tunnels = tunnels;
-        }
-
-        @Override
-        public double h(State s) {
-            if (goal == null) return 0;
-            
-            // Direct Manhattan distance (always admissible)
-            double directDist = Math.abs(s.x - goal.x) + Math.abs(s.y - goal.y);
-            
-            // Consider tunnel shortcuts (still admissible if we assume cost = 1)
-            double minDist = directDist;
-            
-            if (tunnels != null) {
-                for (Tunnel t : tunnels) {
-                    // Distance via tunnel from entrance
-                    double viaFrom = Math.abs(s.x - t.from.x) + Math.abs(s.y - t.from.y) +
-                                   Math.abs(t.to.x - goal.x) + Math.abs(t.to.y - goal.y);
-                    
-                    double viaTo = Math.abs(s.x - t.to.x) + Math.abs(s.y - t.to.y) +
-                                 Math.abs(t.from.x - goal.x) + Math.abs(t.from.y - goal.y);
-                    
-                    minDist = Math.min(minDist, Math.min(viaFrom, viaTo));
-                }
-            }
-            
-            return minDist;
-        }
-    }
-
-    private static class EuclideanHeuristic implements Heuristic<State> {
-        private State goal;
-        private List<Tunnel> tunnels;
-
-        public void setGoal(State goal, List<Tunnel> tunnels) {
-            this.goal = goal;
-            this.tunnels = tunnels;
-        }
-
-        @Override
-        public double h(State s) {
-            if (goal == null) return 0;
-
-            // Euclidean distance (admissible on grid with diagonal movement blocked)
-            double directDist = Math.sqrt(Math.pow(s.x - goal.x, 2) + Math.pow(s.y - goal.y, 2));
-            
-            double minDist = directDist;
-
-            // Consider tunnels
-            if (tunnels != null) {
-                for (Tunnel t : tunnels) {
-                    // Manhattan to tunnel + Euclidean from tunnel
-                    double viaFrom = Math.abs(s.x - t.from.x) + Math.abs(s.y - t.from.y) +
-                                   Math.sqrt(Math.pow(t.to.x - goal.x, 2) + Math.pow(t.to.y - goal.y, 2));
-                    
-                    double viaTo = Math.abs(s.x - t.to.x) + Math.abs(s.y - t.to.y) +
-                                 Math.sqrt(Math.pow(t.from.x - goal.x, 2) + Math.pow(t.from.y - goal.y, 2));
-                    
-                    minDist = Math.min(minDist, Math.min(viaFrom, viaTo));
-                }
-            }
-
-            return minDist;
-        }
     }
 }
