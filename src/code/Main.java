@@ -23,12 +23,6 @@ public class Main {
         System.out.println("Enter number of trucks (same as stores, max 3):");
         int numTrucks = scanner.nextInt();
 
-        // Ensure that numTrucks equals numStores
-        if (numTrucks != numStores) {
-            System.out.println("Error: Number of trucks must be equal to number of stores.");
-            return;
-        }
-
         // Ask for the search strategy or all strategies
         System.out.println("Enter search strategy (BF, DF, ID, UC, GR1, GR2, AS1, AS2) or 'all' to run all strategies:");
         String strategyInput = scanner.next();

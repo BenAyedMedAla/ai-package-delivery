@@ -3,10 +3,14 @@ package code;
 import java.util.*;
 
 /**
- * Generic search algorithms for any problem implementing Problem<State, Action>.
+ * Generic search framework implementing various search strategies.
+ * Based on the algorithm from Lecture 2.
  */
-public class GenericSearch {
+public abstract class GenericSearch {
 
+    /**
+     * Result container for search operations.
+     */
     public static class SearchResult<State, Action> {
         public final List<Action> actions;
         public final double cost;
@@ -19,11 +23,20 @@ public class GenericSearch {
         }
     }
 
-    public static <State, Action> SearchResult<State, Action> search(
-            Problem<State, Action> problem,
+    /**
+     * Main search algorithm - generic implementation.
+     * 
+     * @param problem The problem to solve
+     * @param strategy The search strategy to use
+     * @param h1 First heuristic (for GR1, AS1)
+     * @param h2 Second heuristic (for GR2, AS2)
+     * @return SearchResult containing path, cost, and nodes expanded
+     */
+    public static <S, A> SearchResult<S, A> search(
+            Problem<S, A> problem,
             Strategy strategy,
-            Heuristic<State> h1,
-            Heuristic<State> h2) {
+            Heuristic<S> h1,
+            Heuristic<S> h2) {
 
         switch (strategy) {
             case BF:
@@ -43,364 +56,353 @@ public class GenericSearch {
             case AS2:
                 return aStarSearch(problem, h2);
             default:
-                throw new UnsupportedOperationException("Unknown strategy: " + strategy);
+                throw new IllegalArgumentException("Unknown strategy: " + strategy);
         }
     }
 
-    // ================== BASIC BFS (Breadth-First Search) ==================
-
-    private static <State, Action> SearchResult<State, Action> breadthFirstSearch(
-            Problem<State, Action> problem) {
-
-        Node<State, Action> root =
-                new Node<>(problem.initialState(), null, null, 0, 0.0);
-
-        Queue<Node<State, Action>> frontier = new ArrayDeque<>();
-        frontier.add(root);
-
-        Set<State> explored = new HashSet<>();
-        explored.add(root.state);
-
+    /**
+     * Breadth-First Search (BFS)
+     * Uses FIFO queue, explores level by level.
+     */
+    private static <S, A> SearchResult<S, A> breadthFirstSearch(Problem<S, A> problem) {
+        Queue<Node<S, A>> frontier = new LinkedList<>();
+        Set<S> explored = new HashSet<>();
         int nodesExpanded = 0;
 
+        Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
+        frontier.add(root);
+
         while (!frontier.isEmpty()) {
-            Node<State, Action> node = frontier.remove();
+            Node<S, A> node = frontier.poll();
 
             if (problem.isGoal(node.state)) {
-                List<Action> plan = extractPlan(node);
-                return new SearchResult<>(plan, node.pathCost, nodesExpanded);
+                return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
             }
 
+            if (explored.contains(node.state)) {
+                continue;
+            }
+
+            explored.add(node.state);
             nodesExpanded++;
 
-            for (Action action : problem.actions(node.state)) {
-                State childState = problem.result(node.state, action);
-
+            for (A action : problem.actions(node.state)) {
+                S childState = problem.result(node.state, action);
+                
                 if (!explored.contains(childState)) {
-                    explored.add(childState);
                     double stepCost = problem.stepCost(node.state, action, childState);
-                    Node<State, Action> child = new Node<>(
-                            childState,
-                            node,
-                            action,
-                            node.depth + 1,
-                            node.pathCost + stepCost
+                    Node<S, A> child = new Node<>(
+                        childState,
+                        node,
+                        action,
+                        node.depth + 1,
+                        node.pathCost + stepCost
                     );
                     frontier.add(child);
                 }
             }
         }
 
-        // No solution found
-        return new SearchResult<>(Collections.emptyList(),
-                                  Double.POSITIVE_INFINITY,
-                                  nodesExpanded);
+        return new SearchResult<>(new ArrayList<>(), Double.POSITIVE_INFINITY, nodesExpanded);
     }
 
-    // ================== Depth-First Search ==================
+    /**
+     * Depth-First Search (DFS)
+     * Uses LIFO stack, explores deepest nodes first.
+     */
+    private static <S, A> SearchResult<S, A> depthFirstSearch(Problem<S, A> problem) {
+        Stack<Node<S, A>> frontier = new Stack<>();
+        Set<S> explored = new HashSet<>();
+        int nodesExpanded = 0;
 
-    private static <State, Action> SearchResult<State, Action> depthFirstSearch(
-            Problem<State, Action> problem) {
-
-        Node<State, Action> root =
-                new Node<>(problem.initialState(), null, null, 0, 0.0);
-
-        Deque<Node<State, Action>> frontier = new ArrayDeque<>();
+        Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
         frontier.push(root);
 
-        Set<State> explored = new HashSet<>();
-        explored.add(root.state);
-
-        int nodesExpanded = 0;
-
         while (!frontier.isEmpty()) {
-            Node<State, Action> node = frontier.pop();
+            Node<S, A> node = frontier.pop();
 
             if (problem.isGoal(node.state)) {
-                List<Action> plan = extractPlan(node);
-                return new SearchResult<>(plan, node.pathCost, nodesExpanded);
+                return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
             }
 
+            if (explored.contains(node.state)) {
+                continue;
+            }
+
+            explored.add(node.state);
             nodesExpanded++;
 
-            for (Action action : problem.actions(node.state)) {
-                State childState = problem.result(node.state, action);
-
-                if (!explored.contains(childState)) {
-                    explored.add(childState);
-                    double stepCost = problem.stepCost(node.state, action, childState);
-                    Node<State, Action> child = new Node<>(
-                            childState,
-                            node,
-                            action,
-                            node.depth + 1,
-                            node.pathCost + stepCost
-                    );
-                    frontier.push(child);
-                }
-            }
-        }
-
-        // No solution found
-        return new SearchResult<>(Collections.emptyList(),
-                                  Double.POSITIVE_INFINITY,
-                                  nodesExpanded);
-    }
-
-    // ================== Iterative Deepening Search ==================
-
-// ================== Iterative Deepening Search ==================
-
-private static <State, Action> SearchResult<State, Action> iterativeDeepeningSearch(
-        Problem<State, Action> problem) {
-
-    int depth = 0;
-    int totalNodesExpanded = 0;
-    
-    while (true) {
-        SearchResult<State, Action> result = depthLimitedSearch(problem, depth);
-        totalNodesExpanded += result.nodesExpanded;
-        
-        if (result.cost != Double.POSITIVE_INFINITY) {
-            // Found solution - return with total nodes expanded
-            return new SearchResult<>(result.actions, result.cost, totalNodesExpanded);
-        }
-        depth++;
-        
-        // Safety limit to prevent infinite loop
-        if (depth > 1000) {
-            return new SearchResult<>(Collections.emptyList(), 
-                                    Double.POSITIVE_INFINITY, 
-                                    totalNodesExpanded);
-        }
-    }
-}
-
-private static <State, Action> SearchResult<State, Action> depthLimitedSearch(
-        Problem<State, Action> problem, int limit) {
-
-    Node<State, Action> root = new Node<>(problem.initialState(), null, null, 0, 0.0);
-    Deque<Node<State, Action>> frontier = new ArrayDeque<>();
-    frontier.push(root);
-
-    // NO explored set for ID - only check for cycles in current path
-    int nodesExpanded = 0;
-
-    while (!frontier.isEmpty()) {
-        Node<State, Action> node = frontier.pop();
-
-        // Goal test BEFORE expansion
-        if (problem.isGoal(node.state)) {
-            List<Action> plan = extractPlan(node);
-            return new SearchResult<>(plan, node.pathCost, nodesExpanded);
-        }
-
-        nodesExpanded++;
-
-        // Only expand if we haven't reached depth limit
-        if (node.depth < limit) {
-            for (Action action : problem.actions(node.state)) {
-                State childState = problem.result(node.state, action);
+            // Add children in reverse order for consistent behavior
+            List<A> actions = problem.actions(node.state);
+            for (int i = actions.size() - 1; i >= 0; i--) {
+                A action = actions.get(i);
+                S childState = problem.result(node.state, action);
                 
-                // Only check if childState is in current path (prevent cycles)
-                if (!isInPath(node, childState)) {
+                if (!explored.contains(childState)) {
                     double stepCost = problem.stepCost(node.state, action, childState);
-                    Node<State, Action> child = new Node<>(
-                            childState,
-                            node,
-                            action,
-                            node.depth + 1,
-                            node.pathCost + stepCost
+                    Node<S, A> child = new Node<>(
+                        childState,
+                        node,
+                        action,
+                        node.depth + 1,
+                        node.pathCost + stepCost
                     );
                     frontier.push(child);
                 }
             }
         }
+
+        return new SearchResult<>(new ArrayList<>(), Double.POSITIVE_INFINITY, nodesExpanded);
     }
 
-    // No solution found at this depth
-    return new SearchResult<>(Collections.emptyList(),
-                              Double.POSITIVE_INFINITY,
-                              nodesExpanded);
-}
+    /**
+     * Iterative Deepening Search (IDS)
+     * Combines benefits of BFS and DFS.
+     */
+    private static <S, A> SearchResult<S, A> iterativeDeepeningSearch(Problem<S, A> problem) {
+        int totalNodesExpanded = 0;
 
-// Helper: Check if state is already in the path from root to node (cycle detection)
-private static <State, Action> boolean isInPath(Node<State, Action> node, State state) {
-    Node<State, Action> current = node;
-    while (current != null) {
-        if (current.state.equals(state)) {
-            return true;
-        }
-        current = current.parent;
-    }
-    return false;
-}
+        for (int depthLimit = 0; depthLimit < Integer.MAX_VALUE; depthLimit++) {
+            SearchResult<S, A> result = depthLimitedSearch(problem, depthLimit);
+            totalNodesExpanded += result.nodesExpanded;
 
-    // ================== Uniform Cost Search ==================
-
-    private static <State, Action> SearchResult<State, Action> uniformCostSearch(
-            Problem<State, Action> problem) {
-
-        Node<State, Action> root =
-                new Node<>(problem.initialState(), null, null, 0, 0.0);
-
-        PriorityQueue<Node<State, Action>> frontier = new PriorityQueue<>(
-                Comparator.comparingDouble(n -> n.pathCost));
-        frontier.add(root);
-
-        Map<State, Double> explored = new HashMap<>();
-        explored.put(root.state, root.pathCost);
-
-        int nodesExpanded = 0;
-
-        while (!frontier.isEmpty()) {
-            Node<State, Action> node = frontier.poll();
-
-            if (problem.isGoal(node.state)) {
-                List<Action> plan = extractPlan(node);
-                return new SearchResult<>(plan, node.pathCost, nodesExpanded);
+            if (result.cost != Double.POSITIVE_INFINITY) {
+                return new SearchResult<>(result.actions, result.cost, totalNodesExpanded);
             }
 
-            nodesExpanded++;
-
-            for (Action action : problem.actions(node.state)) {
-                State childState = problem.result(node.state, action);
-                double stepCost = problem.stepCost(node.state, action, childState);
-                double newCost = node.pathCost + stepCost;
-
-                if (!explored.containsKey(childState) || newCost < explored.get(childState)) {
-                    explored.put(childState, newCost);
-                    Node<State, Action> child = new Node<>(
-                            childState,
-                            node,
-                            action,
-                            node.depth + 1,
-                            newCost
-                    );
-                    frontier.add(child);
-                }
+            // Avoid infinite loops for unsolvable problems
+            if (depthLimit > 1000) {
+                break;
             }
         }
 
-        // No solution found
-        return new SearchResult<>(Collections.emptyList(),
-                                  Double.POSITIVE_INFINITY,
-                                  nodesExpanded);
+        return new SearchResult<>(new ArrayList<>(), Double.POSITIVE_INFINITY, totalNodesExpanded);
     }
 
-    // ================== Greedy Search ==================
-
-    private static <State, Action> SearchResult<State, Action> greedySearch(
-            Problem<State, Action> problem, Heuristic<State> heuristic) {
-
-        Node<State, Action> root =
-                new Node<>(problem.initialState(), null, null, 0, 0.0);
-
-        PriorityQueue<Node<State, Action>> frontier = new PriorityQueue<>(
-                Comparator.comparingDouble(n -> heuristic.h(n.state)));
-        frontier.add(root);
-
-        Set<State> explored = new HashSet<>();
-        explored.add(root.state);
-
+    /**
+     * Depth-Limited Search (helper for IDS)
+     */
+    private static <S, A> SearchResult<S, A> depthLimitedSearch(
+            Problem<S, A> problem, 
+            int depthLimit) {
+        
+        Stack<Node<S, A>> frontier = new Stack<>();
+        Set<S> explored = new HashSet<>();
         int nodesExpanded = 0;
 
+        Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
+        frontier.push(root);
+
         while (!frontier.isEmpty()) {
-            Node<State, Action> node = frontier.poll();
+            Node<S, A> node = frontier.pop();
 
             if (problem.isGoal(node.state)) {
-                List<Action> plan = extractPlan(node);
-                return new SearchResult<>(plan, node.pathCost, nodesExpanded);
+                return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
             }
 
+            if (node.depth >= depthLimit) {
+                continue;
+            }
+
+            if (explored.contains(node.state)) {
+                continue;
+            }
+
+            explored.add(node.state);
             nodesExpanded++;
 
-            for (Action action : problem.actions(node.state)) {
-                State childState = problem.result(node.state, action);
-
+            List<A> actions = problem.actions(node.state);
+            for (int i = actions.size() - 1; i >= 0; i--) {
+                A action = actions.get(i);
+                S childState = problem.result(node.state, action);
+                
                 if (!explored.contains(childState)) {
-                    explored.add(childState);
                     double stepCost = problem.stepCost(node.state, action, childState);
-                    Node<State, Action> child = new Node<>(
-                            childState,
-                            node,
-                            action,
-                            node.depth + 1,
-                            node.pathCost + stepCost
+                    Node<S, A> child = new Node<>(
+                        childState,
+                        node,
+                        action,
+                        node.depth + 1,
+                        node.pathCost + stepCost
                     );
-                    frontier.add(child);
+                    frontier.push(child);
                 }
             }
         }
 
-        // No solution found
-        return new SearchResult<>(Collections.emptyList(),
-                                  Double.POSITIVE_INFINITY,
-                                  nodesExpanded);
+        return new SearchResult<>(new ArrayList<>(), Double.POSITIVE_INFINITY, nodesExpanded);
     }
 
-    // ================== A* Search ==================
-
-    private static <State, Action> SearchResult<State, Action> aStarSearch(
-            Problem<State, Action> problem, Heuristic<State> heuristic) {
-
-        Node<State, Action> root =
-                new Node<>(problem.initialState(), null, null, 0, 0.0);
-
-        PriorityQueue<Node<State, Action>> frontier = new PriorityQueue<>(
-                Comparator.comparingDouble(n -> n.pathCost + heuristic.h(n.state)));
-        frontier.add(root);
-
-        Map<State, Double> explored = new HashMap<>();
-        explored.put(root.state, root.pathCost);
-
+    /**
+     * Uniform Cost Search (UCS)
+     * Expands node with lowest path cost g(n).
+     */
+    private static <S, A> SearchResult<S, A> uniformCostSearch(Problem<S, A> problem) {
+        PriorityQueue<Node<S, A>> frontier = new PriorityQueue<>(
+            Comparator.comparingDouble(n -> n.pathCost)
+        );
+        Map<S, Double> bestCost = new HashMap<>();
         int nodesExpanded = 0;
 
+        Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
+        frontier.add(root);
+        bestCost.put(root.state, 0.0);
+
         while (!frontier.isEmpty()) {
-            Node<State, Action> node = frontier.poll();
+            Node<S, A> node = frontier.poll();
 
             if (problem.isGoal(node.state)) {
-                List<Action> plan = extractPlan(node);
-                return new SearchResult<>(plan, node.pathCost, nodesExpanded);
+                return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
+            }
+
+            // Skip if we've found a better path to this state
+            if (bestCost.containsKey(node.state) && node.pathCost > bestCost.get(node.state)) {
+                continue;
             }
 
             nodesExpanded++;
 
-            for (Action action : problem.actions(node.state)) {
-                State childState = problem.result(node.state, action);
+            for (A action : problem.actions(node.state)) {
+                S childState = problem.result(node.state, action);
                 double stepCost = problem.stepCost(node.state, action, childState);
                 double newCost = node.pathCost + stepCost;
 
-                if (!explored.containsKey(childState) || newCost < explored.get(childState)) {
-                    explored.put(childState, newCost);
-                    Node<State, Action> child = new Node<>(
-                            childState,
-                            node,
-                            action,
-                            node.depth + 1,
-                            newCost
+                // Only add if this is a better path
+                if (!bestCost.containsKey(childState) || newCost < bestCost.get(childState)) {
+                    bestCost.put(childState, newCost);
+                    Node<S, A> child = new Node<>(
+                        childState,
+                        node,
+                        action,
+                        node.depth + 1,
+                        newCost
                     );
                     frontier.add(child);
                 }
             }
         }
 
-        // No solution found
-        return new SearchResult<>(Collections.emptyList(),
-                                  Double.POSITIVE_INFINITY,
-                                  nodesExpanded);
+        return new SearchResult<>(new ArrayList<>(), Double.POSITIVE_INFINITY, nodesExpanded);
     }
 
-    private static <State, Action> List<Action> extractPlan(Node<State, Action> goalNode) {
-        List<Action> actions = new ArrayList<>();
-        Node<State, Action> current = goalNode;
+    /**
+     * Greedy Best-First Search
+     * Expands node with lowest heuristic value h(n).
+     */
+    private static <S, A> SearchResult<S, A> greedySearch(
+            Problem<S, A> problem,
+            Heuristic<S> heuristic) {
+        
+        PriorityQueue<Node<S, A>> frontier = new PriorityQueue<>(
+            Comparator.comparingDouble(n -> heuristic.h(n.state))
+        );
+        Set<S> explored = new HashSet<>();
+        int nodesExpanded = 0;
 
-        while (current != null && current.action != null) {
-            actions.add(current.action);
+        Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
+        frontier.add(root);
+
+        while (!frontier.isEmpty()) {
+            Node<S, A> node = frontier.poll();
+
+            if (problem.isGoal(node.state)) {
+                return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
+            }
+
+            if (explored.contains(node.state)) {
+                continue;
+            }
+
+            explored.add(node.state);
+            nodesExpanded++;
+
+            for (A action : problem.actions(node.state)) {
+                S childState = problem.result(node.state, action);
+                
+                if (!explored.contains(childState)) {
+                    double stepCost = problem.stepCost(node.state, action, childState);
+                    Node<S, A> child = new Node<>(
+                        childState,
+                        node,
+                        action,
+                        node.depth + 1,
+                        node.pathCost + stepCost
+                    );
+                    frontier.add(child);
+                }
+            }
+        }
+
+        return new SearchResult<>(new ArrayList<>(), Double.POSITIVE_INFINITY, nodesExpanded);
+    }
+
+    /**
+     * A* Search
+     * Expands node with lowest f(n) = g(n) + h(n).
+     */
+    private static <S, A> SearchResult<S, A> aStarSearch(
+            Problem<S, A> problem,
+            Heuristic<S> heuristic) {
+        
+        PriorityQueue<Node<S, A>> frontier = new PriorityQueue<>(
+            Comparator.comparingDouble(n -> n.pathCost + heuristic.h(n.state))
+        );
+        Map<S, Double> bestCost = new HashMap<>();
+        int nodesExpanded = 0;
+
+        Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
+        frontier.add(root);
+        bestCost.put(root.state, 0.0);
+
+        while (!frontier.isEmpty()) {
+            Node<S, A> node = frontier.poll();
+
+            if (problem.isGoal(node.state)) {
+                return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
+            }
+
+            // Skip if we've found a better path
+            if (bestCost.containsKey(node.state) && node.pathCost > bestCost.get(node.state)) {
+                continue;
+            }
+
+            nodesExpanded++;
+
+            for (A action : problem.actions(node.state)) {
+                S childState = problem.result(node.state, action);
+                double stepCost = problem.stepCost(node.state, action, childState);
+                double newCost = node.pathCost + stepCost;
+
+                if (!bestCost.containsKey(childState) || newCost < bestCost.get(childState)) {
+                    bestCost.put(childState, newCost);
+                    Node<S, A> child = new Node<>(
+                        childState,
+                        node,
+                        action,
+                        node.depth + 1,
+                        newCost
+                    );
+                    frontier.add(child);
+                }
+            }
+        }
+
+        return new SearchResult<>(new ArrayList<>(), Double.POSITIVE_INFINITY, nodesExpanded);
+    }
+
+    /**
+     * Extract path from goal node by tracing back to root.
+     */
+    private static <S, A> List<A> extractPath(Node<S, A> goalNode) {
+        List<A> path = new ArrayList<>();
+        Node<S, A> current = goalNode;
+
+        while (current.parent != null) {
+            path.add(current.action);
             current = current.parent;
         }
 
-        Collections.reverse(actions);
-        return actions;
+        Collections.reverse(path);
+        return path;
     }
 }

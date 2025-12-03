@@ -5,26 +5,23 @@ import java.util.stream.Collectors;
 
 public class DeliverySearch extends GenericSearch implements Problem<State, Action> {
 
-    // Grid representation
-    private final int m; // rows
-    private final int n; // columns
-    private final Map<State, Map<State, Integer>> edgeTraffic; // from -> to -> traffic
-    private final List<Tunnel> tunnels; // list of tunnels
+    private final int m; 
+    private final int n; 
+    private final Map<State, Map<State, Integer>> edgeTraffic;
+    private final List<Tunnel> tunnels;
     private final List<State> stores;
     private final List<State> customers;
     private final List<State> trucks;
 
-    // Heuristics
     private final Heuristic<State> h1;
     private final Heuristic<State> h2;
 
-    // For single pathfinding
     private State start;
     private State goal;
 
-    public DeliverySearch(int m, int n, Map<State, Map<State, Integer>> edgeTraffic, List<Tunnel> tunnels,
-                          List<State> stores, List<State> customers, List<State> trucks,
-                          Heuristic<State> h1, Heuristic<State> h2) {
+    public DeliverySearch(int m, int n, Map<State, Map<State, Integer>> edgeTraffic, 
+                          List<Tunnel> tunnels, List<State> stores, List<State> customers, 
+                          List<State> trucks, Heuristic<State> h1, Heuristic<State> h2) {
         this.m = m;
         this.n = n;
         this.edgeTraffic = edgeTraffic;
@@ -36,12 +33,15 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         this.h2 = h2;
     }
 
-    // Set start and goal for pathfinding
     public void setPath(State start, State goal) {
         this.start = start;
         this.goal = goal;
-        if (h1 instanceof ManhattanHeuristic) ((ManhattanHeuristic) h1).setGoal(goal, tunnels);
-        if (h2 instanceof EuclideanHeuristic) ((EuclideanHeuristic) h2).setGoal(goal, tunnels);
+        if (h1 instanceof ManhattanHeuristic) {
+            ((ManhattanHeuristic) h1).setGoal(goal, tunnels);
+        }
+        if (h2 instanceof EuclideanHeuristic) {
+            ((EuclideanHeuristic) h2).setGoal(goal, tunnels);
+        }
     }
 
     @Override
@@ -54,335 +54,324 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         return state.equals(goal);
     }
 
-   @Override
+    @Override
+    public List<Action> actions(State state) {
+        List<Action> actions = new ArrayList<>();
+        Map<State, Integer> neighbors = edgeTraffic.get(state);
 
-public List<Action> actions(State state) {
-    List<Action> actions = new ArrayList<>();
-    Map<State, Integer> neighbors = edgeTraffic.get(state);
+        // Add regular movement actions
+        if (neighbors != null) {
+            State up = new State(state.x - 1, state.y);
+            if (neighbors.containsKey(up) && neighbors.get(up) > 0) {
+                actions.add(Action.UP);
+            }
 
-    // System.out.println("State: " + state);
-    if (neighbors != null) {
-        // Check for each valid move (up, down, left, right)
-        State up = new State(state.x-1, state.y);
-        if (neighbors.containsKey(up) && neighbors.get(up) != 0) actions.add(Action.UP);
-        State down = new State(state.x+1, state.y);
-        if (neighbors.containsKey(down) && neighbors.get(down) != 0) actions.add(Action.DOWN);
-        State left = new State(state.x, state.y-1);
-        if (neighbors.containsKey(left) && neighbors.get(left) != 0) actions.add(Action.LEFT);
-        State right = new State(state.x, state.y+1);
-        if (neighbors.containsKey(right) && neighbors.get(right) != 0) actions.add(Action.RIGHT);
-    }
+            State down = new State(state.x + 1, state.y);
+            if (neighbors.containsKey(down) && neighbors.get(down) > 0) {
+                actions.add(Action.DOWN);
+            }
 
-    // // Debug the available actions
-    // System.out.println("Actions for " + state + ": " + actions);
+            State left = new State(state.x, state.y - 1);
+            if (neighbors.containsKey(left) && neighbors.get(left) > 0) {
+                actions.add(Action.LEFT);
+            }
 
-    // Check for tunnel
-    for (Tunnel tunnel : tunnels) {
-        if (state.equals(tunnel.from) || state.equals(tunnel.to)) {
-            actions.add(Action.TUNNEL);
-            break;
+            State right = new State(state.x, state.y + 1);
+            if (neighbors.containsKey(right) && neighbors.get(right) > 0) {
+                actions.add(Action.RIGHT);
+            }
         }
+
+        // Add tunnel action if at tunnel entrance
+        for (Tunnel tunnel : tunnels) {
+            if (state.equals(tunnel.from) || state.equals(tunnel.to)) {
+                actions.add(Action.TUNNEL);
+                break; // Only one tunnel action needed
+            }
+        }
+
+        return actions;
     }
-
-    return actions;
-}
-
-
 
     @Override
     public State result(State state, Action action) {
-        int x = state.x;
-        int y = state.y;
         switch (action) {
-            case UP: return new State(x-1, y);
-            case DOWN: return new State(x+1, y);
-            case LEFT: return new State(x, y-1);
-            case RIGHT: return new State(x, y+1);
+            case UP:
+                return new State(state.x - 1, state.y);
+            case DOWN:
+                return new State(state.x + 1, state.y);
+            case LEFT:
+                return new State(state.x, state.y - 1);
+            case RIGHT:
+                return new State(state.x, state.y + 1);
             case TUNNEL:
                 for (Tunnel tunnel : tunnels) {
-                    if (state.equals(tunnel.from)) return tunnel.to;
-                    if (state.equals(tunnel.to)) return tunnel.from;
+                    if (state.equals(tunnel.from)) {
+                        return tunnel.to;
+                    }
+                    if (state.equals(tunnel.to)) {
+                        return tunnel.from;
+                    }
                 }
                 throw new IllegalStateException("No tunnel found for state: " + state);
-            default: throw new IllegalArgumentException("Unknown action: " + action);
+            default:
+                throw new IllegalArgumentException("Unknown action: " + action);
         }
     }
 
     @Override
     public double stepCost(State state, Action action, State nextState) {
         if (action == Action.TUNNEL) {
-            // Manhattan distance
+            // Tunnel cost is Manhattan distance between entrances
             return Math.abs(nextState.x - state.x) + Math.abs(nextState.y - state.y);
         }
-        // Travel time proportional to traffic level
+        
+        // Regular movement cost is traffic level
         Map<State, Integer> neighbors = edgeTraffic.get(state);
         if (neighbors != null) {
             Integer trafficLevel = neighbors.get(nextState);
-            if (trafficLevel != null && trafficLevel != 0) {
+            if (trafficLevel != null && trafficLevel > 0) {
                 return trafficLevel;
             }
         }
-        return Double.POSITIVE_INFINITY; // no edge or blocked
+        
+        return Double.POSITIVE_INFINITY;
     }
 
-    // Static method to generate random grid - returns initialState string
-   public static String GenGrid(int m, int n, int numCustomers, int numStores) {
-    List<State> customers = new ArrayList<>();
-    Set<String> used = new HashSet<>();
-    Random rand = new Random();
-    for (int i = 0; i < numCustomers; i++) {
-        int x, y;
-        do {
-            x = rand.nextInt(m);
-            y = rand.nextInt(n);
-        } while (used.contains(x + "," + y));
-        used.add(x + "," + y);
-        customers.add(new State(x, y));
-    }
+    // ------------------ PATHFINDING ------------------
 
-    List<State> stores = new ArrayList<>();
-    for (int i = 0; i < numStores; i++) {
-        if (i == 0) stores.add(new State(0, 0));
-        else if (i == 1) stores.add(new State(m - 1, n - 1));
-        else if (i == 2) stores.add(new State(m - 1, 0));
-    }
-
-    List<Tunnel> tunnels = new ArrayList<>();
-    if (numStores > 1) {
-        State from = stores.get(0);
-        int tx, ty;
-        do {
-            tx = rand.nextInt(m);
-            ty = rand.nextInt(n);
-        } while (used.contains(tx + "," + ty));
-        State to = new State(tx, ty);
-        tunnels.add(new Tunnel(from, to));
-    }
-
-    StringBuilder sb = new StringBuilder();
-    sb.append(m).append(";").append(n).append(";").append(numCustomers).append(";").append(numStores).append(";");
-    for (State c : customers) {
-        sb.append(c.x).append(",").append(c.y).append(",");
-    }
-    if (!customers.isEmpty()) sb.setLength(sb.length() - 1); // remove last comma
-    sb.append(";");
-    for (State s : stores) {
-        sb.append(s.x).append(",").append(s.y).append(",");
-    }
-    if (!stores.isEmpty()) sb.setLength(sb.length() - 1); // remove last comma
-    sb.append(";");
-    for (Tunnel t : tunnels) {
-        sb.append(t.from.x).append(",").append(t.from.y).append(",").append(t.to.x).append(",").append(t.to.y).append(",");
-    }
-    if (!tunnels.isEmpty()) sb.setLength(sb.length() - 1);
-
-    return sb.toString();
-}
-
-    // Generate traffic string
-    public static String GenTraffic(int m, int n) {
-        // Generate random traffic levels 1-4 for adjacent cells
-        StringBuilder sb = new StringBuilder();
-        Random rand = new Random();
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                if (i > 0) sb.append(i).append(",").append(j).append(",").append(i-1).append(",").append(j).append(",").append(rand.nextInt(4)+1).append(";");
-                if (i < m-1) sb.append(i).append(",").append(j).append(",").append(i+1).append(",").append(j).append(",").append(rand.nextInt(4)+1).append(";");
-                if (j > 0) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j-1).append(",").append(rand.nextInt(4)+1).append(";");
-                if (j < n-1) sb.append(i).append(",").append(j).append(",").append(i).append(",").append(j+1).append(",").append(rand.nextInt(4)+1).append(";");
-            }
-        }
-        if (sb.length() > 0) sb.setLength(sb.length() - 1); // remove last ;
-        return sb.toString();
-    }
-
-    // Find path from store to customer
     public GenericSearch.SearchResult<State, Action> path(State store, State customer, Strategy strategy) {
         setPath(store, customer);
-        Heuristic<State> h1 = new ManhattanHeuristic();
-        Heuristic<State> h2 = new EuclideanHeuristic();
         return GenericSearch.search(this, strategy, h1, h2);
     }
 
-    // Parse grid from string (old format)
-    public static DeliverySearch fromString(String gridStr) {
-        String[] lines = gridStr.split("\n");
-        int idx = 0;
-        String[] mn = lines[idx++].split(" ");
-        int m = Integer.parseInt(mn[0]);
-        int n = Integer.parseInt(mn[1]);
-        int[][] traffic = new int[m][n];
-        for (int i = 0; i < m; i++) {
-            String[] row = lines[idx++].split(" ");
-            for (int j = 0; j < n; j++) {
-                traffic[i][j] = Integer.parseInt(row[j]);
-            }
+    public static String path(DeliverySearch ds, State start, State goal, Strategy strategy) {
+        ds.setPath(start, goal);
+        GenericSearch.SearchResult<State, Action> result = 
+                GenericSearch.search(ds, strategy, ds.h1, ds.h2);
+
+        if (result.cost == Double.POSITIVE_INFINITY) {
+            return "no path;0;0";
         }
-        int numTunnels = Integer.parseInt(lines[idx++]);
-        List<Tunnel> tunnels = new ArrayList<>();
-        for (int i = 0; i < numTunnels; i++) {
-            String[] t = lines[idx++].split(" ");
-            State from = new State(Integer.parseInt(t[0]), Integer.parseInt(t[1]));
-            State to = new State(Integer.parseInt(t[2]), Integer.parseInt(t[3]));
-            tunnels.add(new Tunnel(from, to));
-        }
-        int numStores = Integer.parseInt(lines[idx++]);
-        List<State> stores = new ArrayList<>();
-        for (int i = 0; i < numStores; i++) {
-            String[] s = lines[idx++].split(" ");
-            stores.add(new State(Integer.parseInt(s[0]), Integer.parseInt(s[1])));
-        }
-        int numCustomers = Integer.parseInt(lines[idx++]);
-        List<State> customers = new ArrayList<>();
-        for (int i = 0; i < numCustomers; i++) {
-            String[] c = lines[idx++].split(" ");
-            customers.add(new State(Integer.parseInt(c[0]), Integer.parseInt(c[1])));
-        }
-        int numTrucks = Integer.parseInt(lines[idx++]);
-        List<State> trucks = new ArrayList<>();
-        for (int i = 0; i < numTrucks; i++) {
-            String[] tr = lines[idx++].split(" ");
-            trucks.add(new State(Integer.parseInt(tr[0]), Integer.parseInt(tr[1])));
-        }
-        // Build edgeTraffic from traffic[][]
-        Map<State, Map<State, Integer>> edgeTraffic = new HashMap<>();
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                if (traffic[i][j] > 0) {
-                    State from = new State(i, j);
-                    edgeTraffic.putIfAbsent(from, new HashMap<>());
-                    // add adjacent
-                    if (i > 0 && traffic[i-1][j] > 0) {
-                        State to = new State(i-1, j);
-                        edgeTraffic.get(from).put(to, traffic[i-1][j]);
-                        edgeTraffic.putIfAbsent(to, new HashMap<>());
-                        edgeTraffic.get(to).put(from, traffic[i][j]);
-                    }
-                    if (i < m-1 && traffic[i+1][j] > 0) {
-                        State to = new State(i+1, j);
-                        edgeTraffic.get(from).put(to, traffic[i+1][j]);
-                        edgeTraffic.putIfAbsent(to, new HashMap<>());
-                        edgeTraffic.get(to).put(from, traffic[i][j]);
-                    }
-                    if (j > 0 && traffic[i][j-1] > 0) {
-                        State to = new State(i, j-1);
-                        edgeTraffic.get(from).put(to, traffic[i][j-1]);
-                        edgeTraffic.putIfAbsent(to, new HashMap<>());
-                        edgeTraffic.get(to).put(from, traffic[i][j]);
-                    }
-                    if (j < n-1 && traffic[i][j+1] > 0) {
-                        State to = new State(i, j+1);
-                        edgeTraffic.get(from).put(to, traffic[i][j+1]);
-                        edgeTraffic.putIfAbsent(to, new HashMap<>());
-                        edgeTraffic.get(to).put(from, traffic[i][j]);
-                    }
-                }
-            }
-        }
-        Heuristic<State> h1 = new ManhattanHeuristic();
-        Heuristic<State> h2 = new EuclideanHeuristic();
-        return new DeliverySearch(m, n, edgeTraffic, tunnels, stores, customers, trucks, h1, h2);
+
+        String actions = result.actions.stream()
+                .map(Action::toString)
+                .collect(Collectors.joining(","));
+        
+        return actions + ";" + (int) result.cost + ";" + result.nodesExpanded;
     }
 
-    // Parse from new format
+    // ------------------ PARSING ------------------
+
     public static DeliverySearch fromStrings(String initialState, String trafficStr) {
         String[] parts = initialState.split(";");
+
         int m = Integer.parseInt(parts[0]);
         int n = Integer.parseInt(parts[1]);
         int P = Integer.parseInt(parts[2]);
         int S = Integer.parseInt(parts[3]);
+
+        // Parse customer locations
         List<State> customers = new ArrayList<>();
-        String[] custStr = parts[4].split(",");
-        for (int i = 0; i < custStr.length; i += 2) {
-            int x = Integer.parseInt(custStr[i]);
-            int y = Integer.parseInt(custStr[i+1]);
-            customers.add(new State(x, y));
-        }
-        List<Tunnel> tunnels = new ArrayList<>();
-        if (parts.length > 5) {
-            String[] tunnelStr = parts[5].split(",");
-            for (int i = 0; i < tunnelStr.length; i += 4) {
-                int x1 = Integer.parseInt(tunnelStr[i]);
-                int y1 = Integer.parseInt(tunnelStr[i+1]);
-                int x2 = Integer.parseInt(tunnelStr[i+2]);
-                int y2 = Integer.parseInt(tunnelStr[i+3]);
-                tunnels.add(new Tunnel(new State(x1, y1), new State(x2, y2)));
+        if (parts.length > 4 && !parts[4].isEmpty()) {
+            String[] custStr = parts[4].split(",");
+            for (int i = 0; i < custStr.length; i += 2) {
+                customers.add(new State(
+                    Integer.parseInt(custStr[i]), 
+                    Integer.parseInt(custStr[i + 1])
+                ));
             }
         }
-        // Parse traffic
-        Map<State, Map<State, Integer>> edgeTraffic = new HashMap<>();
-        String[] edges = trafficStr.split(";");
-        for (String edge : edges) {
-            String[] e = edge.split(",");
-            int sx = Integer.parseInt(e[0]);
-            int sy = Integer.parseInt(e[1]);
-            int dx = Integer.parseInt(e[2]);
-            int dy = Integer.parseInt(e[3]);
-            int t = Integer.parseInt(e[4]);
-            if (t == 0) continue; // blocked: do not add edge
-            State from = new State(sx, sy);
-            State to = new State(dx, dy);
-            edgeTraffic.putIfAbsent(from, new HashMap<>());
-            edgeTraffic.get(from).put(to, t);
-            edgeTraffic.putIfAbsent(to, new HashMap<>());
-            edgeTraffic.get(to).put(from, t);
-        }
-        // Generate stores and trucks based on S
+
+        // Parse store locations (fixed positions based on project spec)
         List<State> stores = new ArrayList<>();
         if (S >= 1) stores.add(new State(0, 0));
-        if (S >= 2) stores.add(new State(m-1, n-1));
-        if (S >= 3) stores.add(new State(m-1, 0));
-        List<State> trucks = new ArrayList<>(stores);
-        Heuristic<State> h1 = new ManhattanHeuristic();
-        Heuristic<State> h2 = new EuclideanHeuristic();
-        return new DeliverySearch(m, n, edgeTraffic, tunnels, stores, customers, trucks, h1, h2);
-    }
+        if (S >= 2) stores.add(new State(m - 1, n - 1));
+        if (S >= 3) stores.add(new State(m - 1, 0));
 
-    // Plan: assign trucks to customers and compute routes - returns formatted string
-    public String plan(Strategy strategy, boolean visualize) {
-        DeliveryPlanner planner = new DeliveryPlanner(stores, customers, trucks, this, strategy);
-        List<int[]> assignments = planner.assign(); // list of [truckIndex, customerIndex]
-
-        StringBuilder sb = new StringBuilder();
-        for (int[] assign : assignments) {
-            int truckIdx = assign[0];
-            int custIdx = assign[1];
-            State start = trucks.get(truckIdx);
-            State goal = customers.get(custIdx);
-            String pathStr = path(this, start, goal, strategy);
-            if (pathStr.equals("no path;0;0")) continue;
-            String[] parts = pathStr.split(";");
-            String actions = parts[0];
-            double pathCost = Double.parseDouble(parts[1]);
-            int nodes = Integer.parseInt(parts[2]);
-            sb.append("(Truck").append(truckIdx).append(",Customer").append(custIdx).append(");")
-              .append(actions).append(";").append((int)pathCost).append(";").append(nodes).append("\n");
-            if (visualize) {
-                System.out.println("Truck " + truckIdx + " to Customer " + custIdx + ": " + actions + " cost=" + (int)pathCost + " nodes=" + nodes);
+        // Parse tunnel locations
+        List<Tunnel> tunnels = new ArrayList<>();
+        if (parts.length > 5 && !parts[5].isEmpty()) {
+            String[] tStr = parts[5].split(",");
+            for (int i = 0; i + 3 < tStr.length; i += 4) {
+                tunnels.add(new Tunnel(
+                    new State(Integer.parseInt(tStr[i]), Integer.parseInt(tStr[i + 1])),
+                    new State(Integer.parseInt(tStr[i + 2]), Integer.parseInt(tStr[i + 3]))
+                ));
             }
         }
+
+        // Parse traffic information
+        Map<State, Map<State, Integer>> edgeTraffic = new HashMap<>();
+        for (String edge : trafficStr.split(";")) {
+            String[] e = edge.split(",");
+            if (e.length < 5) continue;
+            
+            State from = new State(Integer.parseInt(e[0]), Integer.parseInt(e[1]));
+            State to = new State(Integer.parseInt(e[2]), Integer.parseInt(e[3]));
+            int cost = Integer.parseInt(e[4]);
+
+            // Skip blocked roads (traffic = 0)
+            if (cost == 0) continue;
+
+            edgeTraffic.putIfAbsent(from, new HashMap<>());
+            edgeTraffic.get(from).put(to, cost);
+        }
+
+        List<State> trucks = new ArrayList<>(stores);
+
+        return new DeliverySearch(m, n, edgeTraffic, tunnels, stores, customers, trucks,
+                new ManhattanHeuristic(), new EuclideanHeuristic());
+    }
+
+    // ------------------ PLANNING ------------------
+
+    public String plan(Strategy strategy, boolean visualize) {
+        DeliveryPlanner planner = new DeliveryPlanner(stores, customers, trucks, this, strategy);
+        List<int[]> assignments = planner.assign();
+
+        StringBuilder sb = new StringBuilder();
+
+        for (int[] assignment : assignments) {
+            int truckIdx = assignment[0];
+            int customerIdx = assignment[1];
+
+            State start = trucks.get(truckIdx);
+            State goal = customers.get(customerIdx);
+
+            String result = path(this, start, goal, strategy);
+
+            if (result.equals("no path;0;0")) {
+                continue;
+            }
+
+            String[] parts = result.split(";");
+            sb.append("(Truck").append(truckIdx)
+              .append(",Customer").append(customerIdx).append(");")
+              .append(parts[0]).append(";")
+              .append(parts[1]).append(";")
+              .append(parts[2]).append("\n");
+
+            if (visualize) {
+                System.out.println("Truck " + truckIdx + " → Customer " + customerIdx + 
+                                 " : " + parts[0] + " cost=" + parts[1]);
+            }
+        }
+
         return sb.toString().trim();
     }
 
-    // Solve: main entry
     public static String solve(String initialState, String traffic, String strategy, boolean visualize) {
-        Strategy strat = Strategy.fromString(strategy);
         DeliverySearch ds = fromStrings(initialState, traffic);
-        return ds.plan(strat, visualize);
+        return ds.plan(Strategy.fromString(strategy), visualize);
     }
 
-    // path: returns "plan;cost;nodesExpanded"
-    public static String path(DeliverySearch ds, State start, State goal, Strategy strategy) {
-        ds.setPath(start, goal);
-        GenericSearch.SearchResult<State, Action> result = GenericSearch.search(ds, strategy, ds.h1, ds.h2);
-        if (result.cost == Double.POSITIVE_INFINITY) {
-            return "no path;0;0";
+    // ------------------ RANDOM GENERATORS ------------------
+
+    public static String GenGrid(int m, int n, int numCustomers, int numStores) {
+        List<State> customers = new ArrayList<>();
+        Set<String> usedPositions = new HashSet<>();
+        Random rand = new Random();
+
+        // Reserve store positions
+        if (numStores >= 1) usedPositions.add("0,0");
+        if (numStores >= 2) usedPositions.add((m-1) + "," + (n-1));
+        if (numStores >= 3) usedPositions.add((m-1) + ",0");
+
+        // Generate random customer positions
+        for (int i = 0; i < numCustomers; i++) {
+            int x, y;
+            do {
+                x = rand.nextInt(m);
+                y = rand.nextInt(n);
+            } while (usedPositions.contains(x + "," + y));
+            usedPositions.add(x + "," + y);
+            customers.add(new State(x, y));
         }
-        String actions = result.actions.stream().map(Action::toString).collect(Collectors.joining(","));
-        return actions + ";" + (int)result.cost + ";" + result.nodesExpanded;
+
+        // Generate stores
+        List<State> stores = new ArrayList<>();
+        if (numStores >= 1) stores.add(new State(0, 0));
+        if (numStores >= 2) stores.add(new State(m - 1, n - 1));
+        if (numStores >= 3) stores.add(new State(m - 1, 0));
+
+        // Generate tunnels
+        List<Tunnel> tunnels = new ArrayList<>();
+        int numTunnels = rand.nextInt(3); // 0-2 tunnels
+        for (int i = 0; i < numTunnels; i++) {
+            int x1, y1, x2, y2;
+            do {
+                x1 = rand.nextInt(m);
+                y1 = rand.nextInt(n);
+            } while (usedPositions.contains(x1 + "," + y1));
+            
+            do {
+                x2 = rand.nextInt(m);
+                y2 = rand.nextInt(n);
+            } while (usedPositions.contains(x2 + "," + y2) || (x1 == x2 && y1 == y2));
+            
+            tunnels.add(new Tunnel(new State(x1, y1), new State(x2, y2)));
+        }
+
+        // Build output string
+        StringBuilder sb = new StringBuilder();
+        sb.append(m).append(";").append(n).append(";")
+          .append(numCustomers).append(";").append(numStores).append(";");
+
+        for (State c : customers) {
+            sb.append(c.x).append(",").append(c.y).append(",");
+        }
+        if (!customers.isEmpty()) sb.setLength(sb.length() - 1);
+        sb.append(";");
+
+        for (Tunnel t : tunnels) {
+            sb.append(t.from.x).append(",").append(t.from.y).append(",")
+              .append(t.to.x).append(",").append(t.to.y).append(",");
+        }
+        if (!tunnels.isEmpty()) sb.setLength(sb.length() - 1);
+
+        return sb.toString();
     }
 
-    // Inner class for Tunnel
+    public static String GenTraffic(int m, int n) {
+        StringBuilder sb = new StringBuilder();
+        Random rand = new Random();
+        
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                // Add edge to up neighbor
+                if (i > 0) {
+                    sb.append(i).append(",").append(j).append(",")
+                      .append(i - 1).append(",").append(j).append(",")
+                      .append(rand.nextInt(4) + 1).append(";");
+                }
+                // Add edge to down neighbor
+                if (i < m - 1) {
+                    sb.append(i).append(",").append(j).append(",")
+                      .append(i + 1).append(",").append(j).append(",")
+                      .append(rand.nextInt(4) + 1).append(";");
+                }
+                // Add edge to left neighbor
+                if (j > 0) {
+                    sb.append(i).append(",").append(j).append(",")
+                      .append(i).append(",").append(j - 1).append(",")
+                      .append(rand.nextInt(4) + 1).append(";");
+                }
+                // Add edge to right neighbor
+                if (j < n - 1) {
+                    sb.append(i).append(",").append(j).append(",")
+                      .append(i).append(",").append(j + 1).append(",")
+                      .append(rand.nextInt(4) + 1).append(";");
+                }
+            }
+        }
+        
+        if (sb.length() > 0) sb.setLength(sb.length() - 1);
+        return sb.toString();
+    }
+
+    // ------------------ TUNNEL CLASS ------------------
+
     public static class Tunnel {
         public final State from;
         public final State to;
@@ -391,20 +380,48 @@ public List<Action> actions(State state) {
             this.from = from;
             this.to = to;
         }
+
+        @Override
+        public String toString() {
+            return "Tunnel[" + from + " <-> " + to + "]";
+        }
     }
 
-    // Heuristics
+    // ------------------ HEURISTICS ------------------
+
     private static class ManhattanHeuristic implements Heuristic<State> {
         private State goal;
+        private List<Tunnel> tunnels;
 
         public void setGoal(State goal, List<Tunnel> tunnels) {
             this.goal = goal;
+            this.tunnels = tunnels;
         }
 
         @Override
-        public double h(State state) {
+        public double h(State s) {
             if (goal == null) return 0;
-            return Math.abs(state.x - goal.x) + Math.abs(state.y - goal.y);
+            
+            // Direct Manhattan distance (always admissible)
+            double directDist = Math.abs(s.x - goal.x) + Math.abs(s.y - goal.y);
+            
+            // Consider tunnel shortcuts (still admissible if we assume cost = 1)
+            double minDist = directDist;
+            
+            if (tunnels != null) {
+                for (Tunnel t : tunnels) {
+                    // Distance via tunnel from entrance
+                    double viaFrom = Math.abs(s.x - t.from.x) + Math.abs(s.y - t.from.y) +
+                                   Math.abs(t.to.x - goal.x) + Math.abs(t.to.y - goal.y);
+                    
+                    double viaTo = Math.abs(s.x - t.to.x) + Math.abs(s.y - t.to.y) +
+                                 Math.abs(t.from.x - goal.x) + Math.abs(t.from.y - goal.y);
+                    
+                    minDist = Math.min(minDist, Math.min(viaFrom, viaTo));
+                }
+            }
+            
+            return minDist;
         }
     }
 
@@ -418,22 +435,29 @@ public List<Action> actions(State state) {
         }
 
         @Override
-        public double h(State state) {
+        public double h(State s) {
             if (goal == null) return 0;
-            double direct = Math.sqrt((state.x - goal.x)*(state.x - goal.x) + (state.y - goal.y)*(state.y - goal.y));
-            double minTunnel = Double.POSITIVE_INFINITY;
+
+            // Euclidean distance (admissible on grid with diagonal movement blocked)
+            double directDist = Math.sqrt(Math.pow(s.x - goal.x, 2) + Math.pow(s.y - goal.y, 2));
+            
+            double minDist = directDist;
+
+            // Consider tunnels
             if (tunnels != null) {
                 for (Tunnel t : tunnels) {
-                    // manhattan to t.from + euclidean from t.to to goal
-                    double viaFrom = Math.abs(state.x - t.from.x) + Math.abs(state.y - t.from.y) +
-                                     Math.sqrt((t.to.x - goal.x)*(t.to.x - goal.x) + (t.to.y - goal.y)*(t.to.y - goal.y));
-                    // manhattan to t.to + euclidean from t.from to goal
-                    double viaTo = Math.abs(state.x - t.to.x) + Math.abs(state.y - t.to.y) +
-                                   Math.sqrt((t.from.x - goal.x)*(t.from.x - goal.x) + (t.from.y - goal.y)*(t.from.y - goal.y));
-                    minTunnel = Math.min(minTunnel, Math.min(viaFrom, viaTo));
+                    // Manhattan to tunnel + Euclidean from tunnel
+                    double viaFrom = Math.abs(s.x - t.from.x) + Math.abs(s.y - t.from.y) +
+                                   Math.sqrt(Math.pow(t.to.x - goal.x, 2) + Math.pow(t.to.y - goal.y, 2));
+                    
+                    double viaTo = Math.abs(s.x - t.to.x) + Math.abs(s.y - t.to.y) +
+                                 Math.sqrt(Math.pow(t.from.x - goal.x, 2) + Math.pow(t.from.y - goal.y, 2));
+                    
+                    minDist = Math.min(minDist, Math.min(viaFrom, viaTo));
                 }
             }
-            return Math.min(direct, minTunnel);
+
+            return minDist;
         }
     }
 }
