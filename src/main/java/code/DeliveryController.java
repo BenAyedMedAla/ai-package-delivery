@@ -1,5 +1,7 @@
 package code;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
@@ -74,33 +76,74 @@ public class DeliveryController {
     }
 
     @PostMapping("/choose-strategy")
-    public StrategyResult chooseStrategy(@RequestBody StrategyRequest request) {
+    public ResponseEntity<?> chooseStrategy(@RequestBody StrategyRequest request) {
         if (initialState == null || traffic == null) {
-            throw new IllegalStateException("Grid not generated yet. Please call /generate-grid first.");
+            return ResponseEntity.badRequest().body(Map.of("error", "Grid not generated yet. Please call /generate-grid first."));
         }
 
-        String strategyInput = request.getStrategy();
-        Strategy strat = Strategy.fromString(strategyInput);
-        String displayName = strat.getDisplayName();
+        try {
+            String strategyInput = request.getStrategy().toLowerCase();
 
-        long start = System.nanoTime();
-        String result = DeliverySearch.solve(initialState, traffic, strategyInput, false);
-        long time = (System.nanoTime() - start) / 1_000_000;
+            if ("all".equals(strategyInput)) {
+                // Run all strategies
+                List<StrategyResult> results = new ArrayList<>();
+                Strategy[] allStrategies = {Strategy.BF, Strategy.DF, Strategy.ID, Strategy.UC, Strategy.GR1, Strategy.GR2, Strategy.AS1, Strategy.AS2};
 
-        // Parse result
-        String[] lines = result.split("\n");
-        int totalNodes = 0;
-        int totalCost = 0;
-        for (String line : lines) {
-            if (!line.trim().isEmpty()) {
-                String[] parts = line.split(";");
-                if (parts.length >= 4) {
-                    totalCost += Integer.parseInt(parts[2]);
-                    totalNodes += Integer.parseInt(parts[3]);
+                for (Strategy strat : allStrategies) {
+                    String stratInput = strat.name().toLowerCase();
+                    String displayName = strat.getDisplayName();
+
+                    long start = System.nanoTime();
+                    String result = DeliverySearch.solve(initialState, traffic, stratInput, false);
+                    long time = (System.nanoTime() - start) / 1_000_000;
+
+                    // Parse result
+                    String[] lines = result.split("\n");
+                    int totalNodes = 0;
+                    int totalCost = 0;
+                    for (String line : lines) {
+                        if (!line.trim().isEmpty()) {
+                            String[] parts = line.split(";");
+                            if (parts.length >= 4) {
+                                totalCost += Integer.parseInt(parts[2]);
+                                totalNodes += Integer.parseInt(parts[3]);
+                            }
+                        }
+                    }
+
+                    results.add(new StrategyResult(displayName, time, totalNodes, totalCost));
                 }
-            }
-        }
 
-        return new StrategyResult(displayName, time, totalNodes, totalCost);
+                return ResponseEntity.ok(new StrategyResults(results));
+            } else {
+                // Single strategy
+                Strategy strat = Strategy.fromString(strategyInput);
+                String displayName = strat.getDisplayName();
+
+                long start = System.nanoTime();
+                String result = DeliverySearch.solve(initialState, traffic, strategyInput, false);
+                long time = (System.nanoTime() - start) / 1_000_000;
+
+                // Parse result
+                String[] lines = result.split("\n");
+                int totalNodes = 0;
+                int totalCost = 0;
+                for (String line : lines) {
+                    if (!line.trim().isEmpty()) {
+                        String[] parts = line.split(";");
+                        if (parts.length >= 4) {
+                            totalCost += Integer.parseInt(parts[2]);
+                            totalNodes += Integer.parseInt(parts[3]);
+                        }
+                    }
+                }
+
+                return ResponseEntity.ok(new StrategyResult(displayName, time, totalNodes, totalCost));
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid strategy: " + request.getStrategy()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An error occurred: " + e.getMessage()));
+        }
     }
 }
