@@ -59,7 +59,7 @@ public class TrafficAwareHeuristic implements Heuristic<State> {
     public double h(State s) {
         if (goal == null) return 0;
         
-        // Direct path cost (minimum cost per edge = 1)
+        // Direct path cost (minimum cost per edge = minTraffic)
         double manhattanDist = Math.abs(s.x - goal.x) + Math.abs(s.y - goal.y);
         double bestCost = manhattanDist * minTraffic;
         
@@ -69,15 +69,15 @@ public class TrafficAwareHeuristic implements Heuristic<State> {
                 // Path via tunnel: state → tunnel entrance → tunnel exit → goal
                 
                 // Option 1: Enter from 'from', exit at 'to'
-                double toFrom = manhattan(s, t.from);
-                double tunnelCost = t.getCost();
-                double toGoalFromTo = manhattan(t.to, goal);
+                double toFrom = manhattan(s, t.from) * minTraffic;
+                double tunnelCost = t.getCost(); // Tunnel cost is already Manhattan distance
+                double toGoalFromTo = manhattan(t.to, goal) * minTraffic;
                 double viaFromTo = toFrom + tunnelCost + toGoalFromTo;
                 
                 // Option 2: Enter from 'to', exit at 'from'
-                double toTo = manhattan(s, t.to);
-                double toGoalFromFrom = manhattan(t.from, goal);
-                double viaToFrom = (toTo + tunnelCost + toGoalFromFrom) * minTraffic;
+                double toTo = manhattan(s, t.to) * minTraffic;
+                double toGoalFromFrom = manhattan(t.from, goal) * minTraffic;
+                double viaToFrom = toTo + tunnelCost + toGoalFromFrom;
                 
                 // Take the better of the two tunnel directions
                 double viaTunnel = Math.min(viaFromTo, viaToFrom);

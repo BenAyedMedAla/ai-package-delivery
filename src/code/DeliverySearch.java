@@ -82,11 +82,11 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             }
         }
 
-        // ✅ FIX: Add tunnel action ONLY if at tunnel entrance
+        // Add tunnel action ONLY if at tunnel entrance
         for (Tunnel tunnel : tunnels) {
             if (tunnel.isEntrance(state)) {
                 actions.add(Action.TUNNEL);
-                break; // Only one tunnel action needed per state
+                break;
             }
         }
 
@@ -105,7 +105,6 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             case RIGHT:
                 return new State(state.x, state.y + 1);
             case TUNNEL:
-                // ✅ FIX: Find the tunnel and return other end
                 for (Tunnel tunnel : tunnels) {
                     State otherEnd = tunnel.getOtherEnd(state);
                     if (otherEnd != null) {
@@ -121,12 +120,9 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
     @Override
     public double stepCost(State state, Action action, State nextState) {
         if (action == Action.TUNNEL) {
-            // ✅ FIX: Tunnel cost is Manhattan distance between entrances
-            // This is correct as per spec
             return Math.abs(nextState.x - state.x) + Math.abs(nextState.y - state.y);
         }
         
-        // Regular movement cost is traffic level
         Map<State, Integer> neighbors = edgeTraffic.get(state);
         if (neighbors != null) {
             Integer trafficLevel = neighbors.get(nextState);
@@ -136,6 +132,142 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         }
         
         return Double.POSITIVE_INFINITY;
+    }
+
+    // ------------------ GRID VISUALIZATION ------------------
+
+    /**
+     * Visualize the grid with truck positions, stores, customers, and tunnels
+     */
+    private void visualizeGrid(List<State> truckPositions, int deliveryNum, int truckIdx, int customerIdx) {
+        System.out.println("\n" + "═".repeat(Math.max(50, n * 4 + 10)));
+        System.out.println("DELIVERY #" + deliveryNum + ": Store" + truckIdx + " → Customer" + customerIdx);
+        System.out.println("═".repeat(Math.max(50, n * 4 + 10)));
+
+        // Create grid representation
+        char[][] grid = new char[m][n];
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                grid[i][j] = '.'; // Empty space
+            }
+        }
+
+        // Mark stores
+        for (int i = 0; i < stores.size(); i++) {
+            State s = stores.get(i);
+            grid[s.x][s.y] = 'S';
+        }
+
+        // Mark customers
+        for (int i = 0; i < customers.size(); i++) {
+            State c = customers.get(i);
+            if (grid[c.x][c.y] == '.') {
+                grid[c.x][c.y] = 'C';
+            } else {
+                grid[c.x][c.y] = 'X'; // Overlapping position
+            }
+        }
+
+        // Mark tunnel entrances
+        for (Tunnel t : tunnels) {
+            if (grid[t.from.x][t.from.y] == '.') {
+                grid[t.from.x][t.from.y] = 'T';
+            }
+            if (grid[t.to.x][t.to.y] == '.') {
+                grid[t.to.x][t.to.y] = 'T';
+            }
+        }
+
+        // Mark trucks (overwrites other markers to show current position)
+        for (int i = 0; i < truckPositions.size(); i++) {
+            State t = truckPositions.get(i);
+            grid[t.x][t.y] = (char) ('0' + i); // Truck 0, 1, 2
+        }
+
+        // Print grid with borders
+        System.out.print("    ");
+        for (int j = 0; j < n; j++) {
+            System.out.printf("%3d ", j);
+        }
+        System.out.println();
+        System.out.print("   ┌");
+        for (int j = 0; j < n; j++) {
+            System.out.print("───");
+            if (j < n - 1) System.out.print("┬");
+        }
+        System.out.println("┐");
+
+        for (int i = 0; i < m; i++) {
+            System.out.printf("%2d │", i);
+            for (int j = 0; j < n; j++) {
+                System.out.printf(" %c ", grid[i][j]);
+                if (j < n - 1) System.out.print("│");
+            }
+            System.out.println("│");
+            
+            if (i < m - 1) {
+                System.out.print("   ├");
+                for (int j = 0; j < n; j++) {
+                    System.out.print("───");
+                    if (j < n - 1) System.out.print("┼");
+                }
+                System.out.println("┤");
+            }
+        }
+
+        System.out.print("   └");
+        for (int j = 0; j < n; j++) {
+            System.out.print("───");
+            if (j < n - 1) System.out.print("┴");
+        }
+        System.out.println("┘");
+
+        // Legend
+        System.out.println("\nLegend:");
+        System.out.println("  0,1,2 = Trucks  |  S = Store  |  C = Customer  |  T = Tunnel  |  . = Empty");
+        System.out.println();
+    }
+
+    /**
+     * Visualize step-by-step path execution
+     */
+    private void visualizePathExecution(State startPos, List<Action> actions, int truckIdx, int customerIdx) {
+        State current = startPos;
+        List<State> allTruckPositions = new ArrayList<>(trucks);
+        
+        System.out.println("\n" + "▼".repeat(60));
+        System.out.println("STEP-BY-STEP: Truck " + truckIdx + " delivering to Customer " + customerIdx);
+        System.out.println("▼".repeat(60));
+        
+        // Initial position
+        System.out.println("\nStep 0: Initial Position");
+        visualizeGrid(allTruckPositions, 0, truckIdx, customerIdx);
+        
+        try {
+            Thread.sleep(500); // Pause for visualization
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // Execute each action
+        for (int i = 0; i < actions.size(); i++) {
+            Action action = actions.get(i);
+            current = result(current, action);
+            allTruckPositions.set(truckIdx, current);
+            
+            System.out.println("\nStep " + (i + 1) + ": Action = " + action);
+            System.out.println("  Truck " + truckIdx + " moved to " + current);
+            visualizeGrid(allTruckPositions, i + 1, truckIdx, customerIdx);
+            
+            try {
+                Thread.sleep(500); // Pause between steps
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        System.out.println("\n✓ DELIVERY COMPLETE!");
+        System.out.println("▲".repeat(60) + "\n");
     }
 
     // ------------------ PATHFINDING ------------------
@@ -183,19 +315,16 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             }
         }
 
-        // ✅ Parse store locations (default positions)
+        // Store locations are IMPLIED by S
         List<State> stores = new ArrayList<>();
         if (S >= 1) stores.add(new State(0, 0));
         if (S >= 2) stores.add(new State(m - 1, n - 1));
         if (S >= 3) stores.add(new State(m - 1, 0));
 
-        // ✅ FIX: Parse tunnel locations correctly
-        // Format: TunnelX_1,TunnelY_1,TunnelX_2,TunnelY_2,...
-        // Each tunnel needs 4 coordinates (2 points)
+        // Parse tunnel locations
         List<Tunnel> tunnels = new ArrayList<>();
         if (parts.length > 5 && !parts[5].isEmpty()) {
             String[] tStr = parts[5].split(",");
-            // Need exactly 4 coordinates per tunnel
             for (int i = 0; i + 3 < tStr.length; i += 4) {
                 try {
                     int x1 = Integer.parseInt(tStr[i]);
@@ -223,59 +352,56 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             State to = new State(Integer.parseInt(e[2]), Integer.parseInt(e[3]));
             int cost = Integer.parseInt(e[4]);
 
-            // Skip blocked roads (traffic = 0)
             if (cost == 0) continue;
 
-            // Add the edge (GenTraffic already creates both directions)
             edgeTraffic.putIfAbsent(from, new HashMap<>());
             edgeTraffic.get(from).put(to, cost);
         }
 
         List<State> trucks = new ArrayList<>(stores);
 
-        // Use Manhattan and Traffic-Aware heuristics
         return new DeliverySearch(m, n, edgeTraffic, tunnels, stores, customers, trucks,
                 new ManhattanHeuristic(), new TrafficAwareHeuristic(1));
     }
 
     // ------------------ PLANNING ------------------
 
-    /**
-     * ✅ FIXED: Only output delivery path, not return trip
-     * ✅ FIXED: Use "Store" instead of "Truck"
-     * ✅ FIXED: Only show delivery cost/nodes
-     */
     public String plan(Strategy strategy, boolean visualize) {
         DeliveryPlanner planner = new DeliveryPlanner(stores, customers, trucks, this, strategy);
         List<int[]> assignments = planner.assign();
 
         StringBuilder sb = new StringBuilder();
         
-        // Track current truck positions (initially at stores)
+        // Track current truck positions
         List<State> currentTruckPositions = new ArrayList<>(trucks);
+        
+        int deliveryNum = 1;
 
         for (int[] assignment : assignments) {
             int truckIdx = assignment[0];
             int customerIdx = assignment[1];
 
-            State start = currentTruckPositions.get(truckIdx);
-            State goal = customers.get(customerIdx);
+            State startPos = currentTruckPositions.get(truckIdx);
+            State goalPos = customers.get(customerIdx);
 
-            // Path from current position to customer (DELIVERY ONLY)
-            String deliveryResult = path(this, start, goal, strategy);
+            // Get path
+            setPath(startPos, goalPos);
+            GenericSearch.SearchResult<State, Action> result = 
+                    GenericSearch.search(this, strategy, h1, h2);
 
-            if (deliveryResult.equals("no path;0;0")) {
+            if (result.cost == Double.POSITIVE_INFINITY) {
                 System.err.println("Warning: No path found from Store" + truckIdx + 
                                  " to Customer" + customerIdx);
                 continue;
             }
 
-            String[] deliveryParts = deliveryResult.split(";");
-            String deliveryPath = deliveryParts[0];
-            int deliveryCost = Integer.parseInt(deliveryParts[1]);
-            int deliveryNodes = Integer.parseInt(deliveryParts[2]);
+            String deliveryPath = result.actions.stream()
+                    .map(Action::toString)
+                    .collect(Collectors.joining(","));
+            int deliveryCost = (int) result.cost;
+            int deliveryNodes = result.nodesExpanded;
 
-            // ✅ Output format: (Store#,Customer#);path;cost;nodes
+            // Output format
             sb.append("(Store").append(truckIdx)
               .append(",Customer").append(customerIdx).append(");")
               .append(deliveryPath).append(";")
@@ -283,28 +409,23 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
               .append(deliveryNodes).append("\n");
 
             if (visualize) {
-                System.out.println("═".repeat(60));
-                System.out.println("Store " + truckIdx + " → Customer " + customerIdx);
-                System.out.println("  From: " + start + " To: " + goal);
-                System.out.println("  Path: " + deliveryPath);
-                System.out.println("  Cost: " + deliveryCost + " | Nodes Expanded: " + deliveryNodes);
-                System.out.println("═".repeat(60));
+                // Show step-by-step grid visualization
+                visualizePathExecution(startPos, result.actions, truckIdx, customerIdx);
             }
 
-            // Calculate return path (internal only, for truck position tracking)
-            State storeLocation = stores.get(truckIdx);
-            path(this, goal, storeLocation, strategy); // Calculate but don't use result
+            // Update truck position after delivery
+            currentTruckPositions.set(truckIdx, goalPos);
             
-            // Truck returns to store, ready for next delivery
+            // Truck returns to store (update position, but don't visualize return)
+            State storeLocation = stores.get(truckIdx);
             currentTruckPositions.set(truckIdx, storeLocation);
+            
+            deliveryNum++;
         }
 
         return sb.toString().trim();
     }
 
-    /**
-     * ✅ ADDED: Static plan method matching spec signature
-     */
     public static String plan(String initialState, String traffic, String strategy, boolean visualize) {
         DeliverySearch ds = fromStrings(initialState, traffic);
         return ds.plan(Strategy.fromString(strategy), visualize);
@@ -316,39 +437,24 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
 
     // ------------------ RANDOM GENERATORS ------------------
 
-    /**
-     * ✅ ADDED: Parameterless GenGrid() as per spec
-     */
     public static String GenGrid() {
         Random rand = new Random();
-        
-        // Random grid size (minimum 3x3, maximum 10x10)
-        int m = rand.nextInt(8) + 3; // 3-10
-        int n = rand.nextInt(8) + 3; // 3-10
-        
-        // Random number of packages/customers (1-10 as per spec)
+        int m = rand.nextInt(8) + 3;
+        int n = rand.nextInt(8) + 3;
         int numCustomers = rand.nextInt(10) + 1;
-        
-        // Random number of stores (1-3 as per spec)
         int numStores = rand.nextInt(3) + 1;
-        
         return GenGrid(m, n, numCustomers, numStores);
     }
 
-    /**
-     * Generate grid with specific parameters
-     */
     public static String GenGrid(int m, int n, int numCustomers, int numStores) {
         List<State> customers = new ArrayList<>();
         Set<String> usedPositions = new HashSet<>();
         Random rand = new Random();
 
-        // Reserve store positions
         if (numStores >= 1) usedPositions.add("0,0");
         if (numStores >= 2) usedPositions.add((m-1) + "," + (n-1));
         if (numStores >= 3) usedPositions.add((m-1) + ",0");
 
-        // Generate random customer positions
         for (int i = 0; i < numCustomers; i++) {
             int x, y;
             do {
@@ -359,9 +465,8 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             customers.add(new State(x, y));
         }
 
-        // ✅ Generate tunnels (0-2 tunnels)
         List<Tunnel> tunnels = new ArrayList<>();
-        int numTunnels = rand.nextInt(3); // 0, 1, or 2 tunnels
+        int numTunnels = rand.nextInt(3);
         for (int i = 0; i < numTunnels; i++) {
             int x1, y1, x2, y2;
             do {
@@ -377,13 +482,10 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             tunnels.add(new Tunnel(new State(x1, y1), new State(x2, y2)));
         }
 
-        // Build output string
-        // Format: m;n;P;S;customerLocations;tunnelLocations
         StringBuilder sb = new StringBuilder();
         sb.append(m).append(";").append(n).append(";")
           .append(numCustomers).append(";").append(numStores).append(";");
 
-        // Customer locations
         for (int i = 0; i < customers.size(); i++) {
             State c = customers.get(i);
             sb.append(c.x).append(",").append(c.y);
@@ -391,7 +493,6 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         }
         sb.append(";");
 
-        // Tunnel locations (4 coordinates per tunnel)
         for (int i = 0; i < tunnels.size(); i++) {
             Tunnel t = tunnels.get(i);
             sb.append(t.from.x).append(",").append(t.from.y).append(",")
@@ -408,25 +509,21 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                // Add edge to up neighbor
                 if (i > 0) {
                     sb.append(i).append(",").append(j).append(",")
                       .append(i - 1).append(",").append(j).append(",")
                       .append(rand.nextInt(4) + 1).append(";");
                 }
-                // Add edge to down neighbor
                 if (i < m - 1) {
                     sb.append(i).append(",").append(j).append(",")
                       .append(i + 1).append(",").append(j).append(",")
                       .append(rand.nextInt(4) + 1).append(";");
                 }
-                // Add edge to left neighbor
                 if (j > 0) {
                     sb.append(i).append(",").append(j).append(",")
                       .append(i).append(",").append(j - 1).append(",")
                       .append(rand.nextInt(4) + 1).append(";");
                 }
-                // Add edge to right neighbor
                 if (j < n - 1) {
                     sb.append(i).append(",").append(j).append(",")
                       .append(i).append(",").append(j + 1).append(",")
