@@ -435,6 +435,13 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         return plan(initialState, traffic, strategy, visualize);
     }
 
+    // Getter methods for accessing private fields
+    public List<State> getStores() { return stores; }
+    public List<State> getCustomers() { return customers; }
+    public List<State> getTrucks() { return trucks; }
+    public Heuristic<State> getH1() { return h1; }
+    public Heuristic<State> getH2() { return h2; }
+
     // ------------------ RANDOM GENERATORS ------------------
 
     public static String GenGrid() {

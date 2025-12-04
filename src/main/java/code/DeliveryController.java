@@ -3,6 +3,8 @@ package code;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.*;
 
 @RestController
@@ -116,34 +118,109 @@ public class DeliveryController {
 
                 return ResponseEntity.ok(new StrategyResults(results));
             } else {
-                // Single strategy
+                // Single strategy with detailed execution
                 Strategy strat = Strategy.fromString(strategyInput);
-                String displayName = strat.getDisplayName();
-
-                long start = System.nanoTime();
-                String result = DeliverySearch.solve(initialState, traffic, strategyInput, false);
-                long time = (System.nanoTime() - start) / 1_000_000;
-
-                // Parse result
-                String[] lines = result.split("\n");
-                int totalNodes = 0;
-                int totalCost = 0;
-                for (String line : lines) {
-                    if (!line.trim().isEmpty()) {
-                        String[] parts = line.split(";");
-                        if (parts.length >= 4) {
-                            totalCost += Integer.parseInt(parts[2]);
-                            totalNodes += Integer.parseInt(parts[3]);
-                        }
-                    }
-                }
-
-                return ResponseEntity.ok(new StrategyResult(displayName, time, totalNodes, totalCost));
+                StrategyExecutionResult executionResult = executeStrategyWithDetails(strat, strategyInput);
+                return ResponseEntity.ok(executionResult);
             }
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid strategy: " + request.getStrategy()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An error occurred: " + e.getMessage()));
         }
+    }
+
+    private StrategyExecutionResult executeStrategyWithDetails(Strategy strategy, String strategyInput) {
+        // Force garbage collection for accurate memory measurement
+        System.gc();
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        Runtime runtime = Runtime.getRuntime();
+        ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+
+        long memBefore = runtime.totalMemory() - runtime.freeMemory();
+        long cpuBefore = threadBean.getCurrentThreadCpuTime();
+        long startTime = System.nanoTime();
+
+        // Execute strategy and capture steps
+        List<String> steps = new ArrayList<>();
+        DeliverySearch ds = DeliverySearch.fromStrings(initialState, traffic);
+
+        // Get assignments
+        DeliveryPlanner planner = new DeliveryPlanner(ds.getStores(), ds.getCustomers(), ds.getTrucks(), ds, strategy);
+        List<int[]> assignments = planner.assign();
+
+        // Track current truck positions
+        List<State> currentTruckPositions = new ArrayList<>(ds.getTrucks());
+
+        int deliveryNum = 1;
+        int totalDeliveries = 0;
+        int totalCost = 0;
+        int totalNodes = 0;
+
+        steps.add("Step 0: Initial Position");
+
+        for (int[] assignment : assignments) {
+            int truckIdx = assignment[0];
+            int customerIdx = assignment[1];
+
+            State startPos = currentTruckPositions.get(truckIdx);
+            State goalPos = ds.getCustomers().get(customerIdx);
+
+            // Add assignment step
+            steps.add("Step " + steps.size() + ": Truck " + truckIdx + " assigned to Customer " + customerIdx);
+
+            // Get path
+            ds.setPath(startPos, goalPos);
+            GenericSearch.SearchResult<State, Action> result = GenericSearch.search(ds, strategy, ds.getH1(), ds.getH2());
+
+            if (result.cost == Double.POSITIVE_INFINITY) {
+                steps.add("Warning: No path found from Store" + truckIdx + " to Customer" + customerIdx);
+                continue;
+            }
+
+            // Record path execution steps
+            State current = startPos;
+            for (Action action : result.actions) {
+                current = ds.result(current, action);
+                steps.add("Step " + steps.size() + ": Action = " + action + ", Truck " + truckIdx + " moved to (" + current.x + "," + current.y + ") delivering to Customer " + customerIdx);
+            }
+
+            totalCost += (int) result.cost;
+            totalNodes += result.nodesExpanded;
+            totalDeliveries++;
+
+            // Update truck position
+            currentTruckPositions.set(truckIdx, goalPos);
+
+            // Truck returns to store (but don't record steps for return)
+            State storeLocation = ds.getStores().get(truckIdx);
+            currentTruckPositions.set(truckIdx, storeLocation);
+
+            deliveryNum++;
+        }
+
+        steps.add("Delivery Complete!");
+
+        long endTime = System.nanoTime();
+        long timeMs = (endTime - startTime) / 1_000_000;
+        long memAfter = runtime.totalMemory() - runtime.freeMemory();
+        long memUsed = (memAfter - memBefore) / 1024; // KB
+        long cpuAfter = threadBean.getCurrentThreadCpuTime();
+        long cpuUsed = (cpuAfter - cpuBefore) / 1_000_000; // ms
+
+        Map<String, Object> metrics = new HashMap<>();
+        metrics.put("timeMs", timeMs);
+        metrics.put("deliveries", totalDeliveries);
+        metrics.put("totalCost", totalCost);
+        metrics.put("nodesExpanded", totalNodes);
+        metrics.put("memoryKB", memUsed);
+        metrics.put("cpuMs", cpuUsed);
+
+        return new StrategyExecutionResult(steps, metrics);
     }
 }
