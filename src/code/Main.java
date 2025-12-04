@@ -9,7 +9,7 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
         
         System.out.println("╔════════════════════════════════════════╗");
-        System.out.println("║   DELIVERY SYSTEM - AI PROJECT        ║");
+        System.out.println("║   DELIVERY SYSTEM - AI PROJECT         ║");
         System.out.println("║   Package Delivery Optimization        ║");
         System.out.println("╚════════════════════════════════════════╝\n");
         
