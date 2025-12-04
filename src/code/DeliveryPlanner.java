@@ -8,8 +8,7 @@ import java.util.*;
  * Strategy: Greedy assignment - each customer is assigned to the truck
  * with the minimal delivery cost from that truck's current/initial position.
  * 
- * Note: This is a simplified version. For optimal global assignment,
- * consider Hungarian Algorithm or other optimization techniques.
+ * ✅ OPTIMIZATION: Cache path computations to avoid redundant searches
  */
 public class DeliveryPlanner {
 
@@ -18,6 +17,9 @@ public class DeliveryPlanner {
     private final List<State> trucks;
     private final DeliverySearch ds;
     private final Strategy strategy;
+    
+    // ✅ Cache for path computations
+    private Map<String, String> pathCache;
 
     public DeliveryPlanner(List<State> stores,
                            List<State> customers,
@@ -29,6 +31,7 @@ public class DeliveryPlanner {
         this.trucks = trucks;
         this.ds = ds;
         this.strategy = strategy;
+        this.pathCache = new HashMap<>();
     }
 
     /**
@@ -54,11 +57,13 @@ public class DeliveryPlanner {
      * Greedy Assignment: Each customer gets the closest truck.
      * Time Complexity: O(T * C * SearchCost)
      * where T = trucks, C = customers
+     * 
+     * ✅ OPTIMIZED: Uses cache to avoid redundant path computations
      */
     private List<int[]> greedyAssignment() {
         List<int[]> assignments = new ArrayList<>();
         
-        // Compute cost matrix
+        // Compute cost matrix (with caching)
         double[][] costMatrix = computeCostMatrix();
         
         // For each customer, find truck with minimum cost
@@ -77,86 +82,32 @@ public class DeliveryPlanner {
     }
 
     /**
-     * Optimal Assignment using Hungarian Algorithm.
-     * Minimizes total delivery cost across all trucks.
-     * 
-     * For project: This is EXTRA CREDIT if you implement it!
-     */
-    private List<int[]> optimalAssignment() {
-        // TODO: Implement Hungarian Algorithm or Branch & Bound
-        // This would give globally optimal truck-customer assignments
-        
-        // For now, fall back to greedy
-        return greedyAssignment();
-    }
-
-    /**
-     * Sequential Assignment: Assign closest customer to each truck,
-     * then update truck position (simulating delivery completion).
-     */
-    private List<int[]> sequentialAssignment() {
-        List<int[]> assignments = new ArrayList<>();
-        Set<Integer> assignedCustomers = new HashSet<>();
-        Map<Integer, State> truckPositions = new HashMap<>();
-        
-        // Initialize truck positions
-        for (int t = 0; t < trucks.size(); t++) {
-            truckPositions.put(t, trucks.get(t));
-        }
-        
-        // Assign customers one by one
-        while (assignedCustomers.size() < customers.size()) {
-            double minCost = Double.POSITIVE_INFINITY;
-            int bestTruck = -1;
-            int bestCustomer = -1;
-            
-            // Find best (truck, customer) pair
-            for (int t = 0; t < trucks.size(); t++) {
-                State truckPos = truckPositions.get(t);
-                
-                for (int c = 0; c < customers.size(); c++) {
-                    if (assignedCustomers.contains(c)) continue;
-                    
-                    String pathStr = DeliverySearch.path(ds, truckPos, customers.get(c), strategy);
-                    double cost = parseCost(pathStr);
-                    
-                    if (cost < minCost) {
-                        minCost = cost;
-                        bestTruck = t;
-                        bestCustomer = c;
-                    }
-                }
-            }
-            
-            if (bestTruck != -1 && bestCustomer != -1) {
-                assignments.add(new int[]{bestTruck, bestCustomer});
-                assignedCustomers.add(bestCustomer);
-                
-                // Update truck position (returns to store after delivery)
-                truckPositions.put(bestTruck, stores.get(bestTruck));
-            } else {
-                break; // No more reachable customers
-            }
-        }
-        
-        return assignments;
-    }
-
-    /**
      * Compute cost matrix for all truck-customer pairs.
      * costMatrix[t][c] = cost for truck t to reach customer c
+     * 
+     * ✅ USES CACHE to avoid redundant searches
      */
     private double[][] computeCostMatrix() {
         double[][] costMatrix = new double[trucks.size()][customers.size()];
         
         for (int t = 0; t < trucks.size(); t++) {
             for (int c = 0; c < customers.size(); c++) {
-                String pathStr = DeliverySearch.path(
-                    ds, 
-                    trucks.get(t), 
-                    customers.get(c), 
-                    strategy
-                );
+                // Create cache key
+                String key = trucks.get(t) + "->" + customers.get(c) + ":" + strategy;
+                
+                String pathStr;
+                if (pathCache.containsKey(key)) {
+                    pathStr = pathCache.get(key);
+                } else {
+                    pathStr = DeliverySearch.path(
+                        ds, 
+                        trucks.get(t), 
+                        customers.get(c), 
+                        strategy
+                    );
+                    pathCache.put(key, pathStr);
+                }
+                
                 costMatrix[t][c] = parseCost(pathStr);
             }
         }
@@ -225,12 +176,21 @@ public class DeliveryPlanner {
             
             deliveriesPerTruck[truckIdx]++;
             
-            String pathStr = DeliverySearch.path(
-                ds, 
-                trucks.get(truckIdx), 
-                customers.get(customerIdx), 
-                strategy
-            );
+            // Use cache if available
+            String key = trucks.get(truckIdx) + "->" + customers.get(customerIdx) + ":" + strategy;
+            String pathStr;
+            
+            if (pathCache.containsKey(key)) {
+                pathStr = pathCache.get(key);
+            } else {
+                pathStr = DeliverySearch.path(
+                    ds, 
+                    trucks.get(truckIdx), 
+                    customers.get(customerIdx), 
+                    strategy
+                );
+            }
+            
             totalCost += parseCost(pathStr);
         }
         
@@ -296,5 +256,12 @@ public class DeliveryPlanner {
         AssignmentStats stats = getStats(assignments);
         System.out.println("\n" + stats);
         System.out.println("============================\n");
+    }
+    
+    /**
+     * Clear the path cache (useful for testing different strategies)
+     */
+    public void clearCache() {
+        pathCache.clear();
     }
 }

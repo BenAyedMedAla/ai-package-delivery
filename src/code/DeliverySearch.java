@@ -82,11 +82,11 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             }
         }
 
-        // Add tunnel action if at tunnel entrance
+        // ✅ FIX: Add tunnel action ONLY if at tunnel entrance
         for (Tunnel tunnel : tunnels) {
-            if (state.equals(tunnel.from) || state.equals(tunnel.to)) {
+            if (tunnel.isEntrance(state)) {
                 actions.add(Action.TUNNEL);
-                break; // Only one tunnel action needed
+                break; // Only one tunnel action needed per state
             }
         }
 
@@ -105,12 +105,11 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             case RIGHT:
                 return new State(state.x, state.y + 1);
             case TUNNEL:
+                // ✅ FIX: Find the tunnel and return other end
                 for (Tunnel tunnel : tunnels) {
-                    if (state.equals(tunnel.from)) {
-                        return tunnel.to;
-                    }
-                    if (state.equals(tunnel.to)) {
-                        return tunnel.from;
+                    State otherEnd = tunnel.getOtherEnd(state);
+                    if (otherEnd != null) {
+                        return otherEnd;
                     }
                 }
                 throw new IllegalStateException("No tunnel found for state: " + state);
@@ -122,7 +121,8 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
     @Override
     public double stepCost(State state, Action action, State nextState) {
         if (action == Action.TUNNEL) {
-            // Tunnel cost is Manhattan distance between entrances
+            // ✅ FIX: Tunnel cost is Manhattan distance between entrances
+            // This is correct as per spec
             return Math.abs(nextState.x - state.x) + Math.abs(nextState.y - state.y);
         }
         
@@ -175,7 +175,7 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         List<State> customers = new ArrayList<>();
         if (parts.length > 4 && !parts[4].isEmpty()) {
             String[] custStr = parts[4].split(",");
-            for (int i = 0; i < custStr.length; i += 2) {
+            for (int i = 0; i + 1 < custStr.length; i += 2) {
                 customers.add(new State(
                     Integer.parseInt(custStr[i]), 
                     Integer.parseInt(custStr[i + 1])
@@ -183,26 +183,37 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             }
         }
 
-        // Parse store locations (fixed positions based on project spec)
+        // ✅ Parse store locations (default positions)
         List<State> stores = new ArrayList<>();
         if (S >= 1) stores.add(new State(0, 0));
         if (S >= 2) stores.add(new State(m - 1, n - 1));
         if (S >= 3) stores.add(new State(m - 1, 0));
 
-        // Parse tunnel locations
+        // ✅ FIX: Parse tunnel locations correctly
+        // Format: TunnelX_1,TunnelY_1,TunnelX_2,TunnelY_2,...
+        // Each tunnel needs 4 coordinates (2 points)
         List<Tunnel> tunnels = new ArrayList<>();
         if (parts.length > 5 && !parts[5].isEmpty()) {
             String[] tStr = parts[5].split(",");
+            // Need exactly 4 coordinates per tunnel
             for (int i = 0; i + 3 < tStr.length; i += 4) {
-                tunnels.add(new Tunnel(
-                    new State(Integer.parseInt(tStr[i]), Integer.parseInt(tStr[i + 1])),
-                    new State(Integer.parseInt(tStr[i + 2]), Integer.parseInt(tStr[i + 3]))
-                ));
+                try {
+                    int x1 = Integer.parseInt(tStr[i]);
+                    int y1 = Integer.parseInt(tStr[i + 1]);
+                    int x2 = Integer.parseInt(tStr[i + 2]);
+                    int y2 = Integer.parseInt(tStr[i + 3]);
+                    
+                    State entrance1 = new State(x1, y1);
+                    State entrance2 = new State(x2, y2);
+                    
+                    tunnels.add(new Tunnel(entrance1, entrance2));
+                } catch (NumberFormatException e) {
+                    System.err.println("Warning: Failed to parse tunnel at index " + i);
+                }
             }
         }
 
         // Parse traffic information
-        // FIXED: GenTraffic already generates both directions, so only add one direction
         Map<State, Map<State, Integer>> edgeTraffic = new HashMap<>();
         for (String edge : trafficStr.split(";")) {
             String[] e = edge.split(",");
@@ -215,7 +226,7 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             // Skip blocked roads (traffic = 0)
             if (cost == 0) continue;
 
-            // Only add one direction (GenTraffic already creates both)
+            // Add the edge (GenTraffic already creates both directions)
             edgeTraffic.putIfAbsent(from, new HashMap<>());
             edgeTraffic.get(from).put(to, cost);
         }
@@ -229,6 +240,11 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
 
     // ------------------ PLANNING ------------------
 
+    /**
+     * ✅ FIXED: Only output delivery path, not return trip
+     * ✅ FIXED: Use "Store" instead of "Truck"
+     * ✅ FIXED: Only show delivery cost/nodes
+     */
     public String plan(Strategy strategy, boolean visualize) {
         DeliveryPlanner planner = new DeliveryPlanner(stores, customers, trucks, this, strategy);
         List<int[]> assignments = planner.assign();
@@ -245,55 +261,40 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             State start = currentTruckPositions.get(truckIdx);
             State goal = customers.get(customerIdx);
 
-            // Path from current position to customer
+            // Path from current position to customer (DELIVERY ONLY)
             String deliveryResult = path(this, start, goal, strategy);
 
             if (deliveryResult.equals("no path;0;0")) {
+                System.err.println("Warning: No path found from Store" + truckIdx + 
+                                 " to Customer" + customerIdx);
                 continue;
             }
 
             String[] deliveryParts = deliveryResult.split(";");
+            String deliveryPath = deliveryParts[0];
             int deliveryCost = Integer.parseInt(deliveryParts[1]);
             int deliveryNodes = Integer.parseInt(deliveryParts[2]);
 
-            // Path from customer back to store
-            State storeLocation = stores.get(truckIdx);
-            String returnResult = path(this, goal, storeLocation, strategy);
-
-            int returnCost = 0;
-            int returnNodes = 0;
-            String returnPath = "";
-
-            if (!returnResult.equals("no path;0;0")) {
-                String[] returnParts = returnResult.split(";");
-                returnPath = returnParts[0];
-                returnCost = Integer.parseInt(returnParts[1]);
-                returnNodes = Integer.parseInt(returnParts[2]);
-            }
-
-            // Total cost includes delivery + return
-            int totalCost = deliveryCost + returnCost;
-            int totalNodes = deliveryNodes + returnNodes;
-
-            // Build complete path: delivery + return
-            String completePath = deliveryParts[0];
-            if (!returnPath.isEmpty()) {
-                completePath += "," + returnPath;
-            }
-
-            sb.append("(Truck").append(truckIdx)
+            // ✅ Output format: (Store#,Customer#);path;cost;nodes
+            sb.append("(Store").append(truckIdx)
               .append(",Customer").append(customerIdx).append(");")
-              .append(completePath).append(";")
-              .append(totalCost).append(";")
-              .append(totalNodes).append("\n");
+              .append(deliveryPath).append(";")
+              .append(deliveryCost).append(";")
+              .append(deliveryNodes).append("\n");
 
             if (visualize) {
-                System.out.println("Truck " + truckIdx + " → Customer " + customerIdx + 
-                                 " (Delivery: " + deliveryCost + ", Return: " + returnCost + 
-                                 ", Total: " + totalCost + ")");
-                System.out.println("  Path: " + completePath);
+                System.out.println("═".repeat(60));
+                System.out.println("Store " + truckIdx + " → Customer " + customerIdx);
+                System.out.println("  From: " + start + " To: " + goal);
+                System.out.println("  Path: " + deliveryPath);
+                System.out.println("  Cost: " + deliveryCost + " | Nodes Expanded: " + deliveryNodes);
+                System.out.println("═".repeat(60));
             }
 
+            // Calculate return path (internal only, for truck position tracking)
+            State storeLocation = stores.get(truckIdx);
+            path(this, goal, storeLocation, strategy); // Calculate but don't use result
+            
             // Truck returns to store, ready for next delivery
             currentTruckPositions.set(truckIdx, storeLocation);
         }
@@ -301,13 +302,42 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         return sb.toString().trim();
     }
 
-    public static String solve(String initialState, String traffic, String strategy, boolean visualize) {
+    /**
+     * ✅ ADDED: Static plan method matching spec signature
+     */
+    public static String plan(String initialState, String traffic, String strategy, boolean visualize) {
         DeliverySearch ds = fromStrings(initialState, traffic);
         return ds.plan(Strategy.fromString(strategy), visualize);
     }
 
+    public static String solve(String initialState, String traffic, String strategy, boolean visualize) {
+        return plan(initialState, traffic, strategy, visualize);
+    }
+
     // ------------------ RANDOM GENERATORS ------------------
 
+    /**
+     * ✅ ADDED: Parameterless GenGrid() as per spec
+     */
+    public static String GenGrid() {
+        Random rand = new Random();
+        
+        // Random grid size (minimum 3x3, maximum 10x10)
+        int m = rand.nextInt(8) + 3; // 3-10
+        int n = rand.nextInt(8) + 3; // 3-10
+        
+        // Random number of packages/customers (1-10 as per spec)
+        int numCustomers = rand.nextInt(10) + 1;
+        
+        // Random number of stores (1-3 as per spec)
+        int numStores = rand.nextInt(3) + 1;
+        
+        return GenGrid(m, n, numCustomers, numStores);
+    }
+
+    /**
+     * Generate grid with specific parameters
+     */
     public static String GenGrid(int m, int n, int numCustomers, int numStores) {
         List<State> customers = new ArrayList<>();
         Set<String> usedPositions = new HashSet<>();
@@ -329,15 +359,9 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             customers.add(new State(x, y));
         }
 
-        // Generate stores
-        List<State> stores = new ArrayList<>();
-        if (numStores >= 1) stores.add(new State(0, 0));
-        if (numStores >= 2) stores.add(new State(m - 1, n - 1));
-        if (numStores >= 3) stores.add(new State(m - 1, 0));
-
-        // Generate tunnels
+        // ✅ Generate tunnels (0-2 tunnels)
         List<Tunnel> tunnels = new ArrayList<>();
-        int numTunnels = rand.nextInt(3); // 0-2 tunnels
+        int numTunnels = rand.nextInt(3); // 0, 1, or 2 tunnels
         for (int i = 0; i < numTunnels; i++) {
             int x1, y1, x2, y2;
             do {
@@ -354,21 +378,26 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         }
 
         // Build output string
+        // Format: m;n;P;S;customerLocations;tunnelLocations
         StringBuilder sb = new StringBuilder();
         sb.append(m).append(";").append(n).append(";")
           .append(numCustomers).append(";").append(numStores).append(";");
 
-        for (State c : customers) {
-            sb.append(c.x).append(",").append(c.y).append(",");
+        // Customer locations
+        for (int i = 0; i < customers.size(); i++) {
+            State c = customers.get(i);
+            sb.append(c.x).append(",").append(c.y);
+            if (i < customers.size() - 1) sb.append(",");
         }
-        if (!customers.isEmpty()) sb.setLength(sb.length() - 1);
         sb.append(";");
 
-        for (Tunnel t : tunnels) {
+        // Tunnel locations (4 coordinates per tunnel)
+        for (int i = 0; i < tunnels.size(); i++) {
+            Tunnel t = tunnels.get(i);
             sb.append(t.from.x).append(",").append(t.from.y).append(",")
-              .append(t.to.x).append(",").append(t.to.y).append(",");
+              .append(t.to.x).append(",").append(t.to.y);
+            if (i < tunnels.size() - 1) sb.append(",");
         }
-        if (!tunnels.isEmpty()) sb.setLength(sb.length() - 1);
 
         return sb.toString();
     }

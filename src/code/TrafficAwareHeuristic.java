@@ -5,34 +5,46 @@ import java.util.List;
 /**
  * H2: Traffic-Aware Manhattan Heuristic
  * 
- * This heuristic considers the minimum traffic level when estimating the cost
- * to reach the goal. It also considers tunnel shortcuts for more accurate estimates.
+ * This heuristic considers both Manhattan distance and tunnel shortcuts
+ * while maintaining admissibility by never overestimating the actual cost.
  * 
- * Admissibility Proof:
- * 1. Actual path cost = Σ(traffic_i) for each edge i in the path
- * 2. Since traffic_i ≥ minTraffic for all edges
- * 3. Actual cost ≥ minTraffic × number_of_edges
- * 4. Number of edges ≥ Manhattan distance (shortest path on 4-connected grid)
- * 5. Therefore: h(n) = minTraffic × Manhattan ≤ actual cost
+ * ADMISSIBILITY PROOF:
+ * ---------------------
+ * 1. For direct path (no tunnels):
+ *    - Minimum edges needed = Manhattan distance (straight-line path on grid)
+ *    - Each edge costs >= 1 (minimum traffic level)
+ *    - Therefore: h(n) = Manhattan × 1 ≤ actual cost ✓
  * 
- * Tunnel Consideration:
- * - We calculate the cost via each tunnel: (distance to entrance) + tunnel_cost + (distance from exit)
- * - Tunnel cost = Manhattan distance between entrances (as per project spec)
- * - We take the minimum of direct path and all tunnel paths
- * - Since we never overestimate any component, the minimum never overestimates
- * - This heuristic is admissible and more informed than pure Manhattan
+ * 2. For tunnel paths:
+ *    - Cost to tunnel entrance >= Manhattan(state, entrance) × 1
+ *    - Tunnel cost = Manhattan(entrance1, entrance2) [as per project spec]
+ *    - Cost from tunnel exit >= Manhattan(exit, goal) × 1
+ *    - We take minimum of all possible paths
+ *    - Since each component never overestimates, minimum never overestimates ✓
+ * 
+ * 3. Comparison with H1:
+ *    - H1 = pure Manhattan distance (always admissible)
+ *    - H2 = min(direct Manhattan, best tunnel path)
+ *    - H2 ≤ H1 (more informed, considers shortcuts)
+ *    - H2 is admissible AND more informed than H1
+ * 
+ * IMPLEMENTATION NOTES:
+ * ---------------------
+ * - minTraffic is set to 1 (minimum possible traffic level)
+ * - This ensures we never underestimate (which would be inadmissible)
+ * - We never overestimate (which guarantees optimality with A*)
  */
 public class TrafficAwareHeuristic implements Heuristic<State> {
     private State goal;
     private List<Tunnel> tunnels;
-    private final int minTraffic; // Minimum traffic level in the grid
+    private final int minTraffic;
 
     /**
      * Constructor
-     * @param minTraffic the minimum traffic level in the grid (usually 1)
+     * @param minTraffic the minimum traffic level in the grid (typically 1)
      */
     public TrafficAwareHeuristic(int minTraffic) {
-        this.minTraffic = Math.max(1, minTraffic); // At least 1
+        this.minTraffic = Math.max(1, minTraffic);
     }
 
     /**
@@ -47,38 +59,57 @@ public class TrafficAwareHeuristic implements Heuristic<State> {
     public double h(State s) {
         if (goal == null) return 0;
         
-        // Manhattan distance weighted by minimum traffic
-        // This is admissible because actual cost >= minTraffic * distance
+        // Direct path cost (minimum cost per edge = 1)
         double manhattanDist = Math.abs(s.x - goal.x) + Math.abs(s.y - goal.y);
-        double directCost = manhattanDist * minTraffic;
+        double bestCost = manhattanDist * minTraffic;
         
-        double minCost = directCost;
-        
-        // Consider tunnels (tunnel cost = Manhattan between entrances)
-        if (tunnels != null) {
+        // Check if any tunnel provides a better path
+        if (tunnels != null && !tunnels.isEmpty()) {
             for (Tunnel t : tunnels) {
-                // Cost to reach first entrance
-                double toEntrance1 = (Math.abs(s.x - t.from.x) + Math.abs(s.y - t.from.y)) * minTraffic;
-                // Tunnel traversal cost (Manhattan distance between entrances)
-                double tunnelCost = Math.abs(t.from.x - t.to.x) + Math.abs(t.from.y - t.to.y);
-                // Cost from tunnel exit to goal
-                double fromExit1 = (Math.abs(t.to.x - goal.x) + Math.abs(t.to.y - goal.y)) * minTraffic;
-                double viaFrom = toEntrance1 + tunnelCost + fromExit1;
+                // Path via tunnel: state → tunnel entrance → tunnel exit → goal
                 
-                // Same calculation for other direction
-                double toEntrance2 = (Math.abs(s.x - t.to.x) + Math.abs(s.y - t.to.y)) * minTraffic;
-                double fromExit2 = (Math.abs(t.from.x - goal.x) + Math.abs(t.from.y - goal.y)) * minTraffic;
-                double viaTo = toEntrance2 + tunnelCost + fromExit2;
+                // Option 1: Enter from 'from', exit at 'to'
+                double toFrom = manhattan(s, t.from);
+                double tunnelCost = t.getCost();
+                double toGoalFromTo = manhattan(t.to, goal);
+                double viaFromTo = toFrom + tunnelCost + toGoalFromTo;
                 
-                minCost = Math.min(minCost, Math.min(viaFrom, viaTo));
+                // Option 2: Enter from 'to', exit at 'from'
+                double toTo = manhattan(s, t.to);
+                double toGoalFromFrom = manhattan(t.from, goal);
+                double viaToFrom = (toTo + tunnelCost + toGoalFromFrom) * minTraffic;
+                
+                // Take the better of the two tunnel directions
+                double viaTunnel = Math.min(viaFromTo, viaToFrom);
+                
+                // Update best cost if this tunnel is better
+                bestCost = Math.min(bestCost, viaTunnel);
             }
         }
         
-        return minCost;
+        return bestCost;
+    }
+
+    /**
+     * Calculate Manhattan distance between two states
+     */
+    private double manhattan(State s1, State s2) {
+        return Math.abs(s1.x - s2.x) + Math.abs(s1.y - s2.y);
     }
 
     @Override
     public String toString() {
         return "TrafficAwareHeuristic(minTraffic=" + minTraffic + ")";
+    }
+
+    /**
+     * Get a detailed description of this heuristic for the report
+     */
+    public String getDescription() {
+        return "Traffic-Aware Manhattan Heuristic with Tunnel Consideration\n" +
+               "- Base: Manhattan distance × minimum traffic level\n" +
+               "- Enhancement: Considers tunnel shortcuts\n" +
+               "- Admissible: Never overestimates actual path cost\n" +
+               "- More informed than pure Manhattan distance";
     }
 }

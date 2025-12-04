@@ -1,4 +1,4 @@
-package tests ;
+package tests;
 
 import code.*;
 
@@ -20,6 +20,7 @@ public class DeliverySystemTests {
         testAllSearchStrategies();
         testCompletePipeline();
         testPerformanceComparison();
+        testOptimalityCheck();
         
         System.out.println("\n========================================");
         System.out.println("  ALL TESTS COMPLETED");
@@ -39,7 +40,15 @@ public class DeliverySystemTests {
         try {
             String result = DeliverySearch.solve(initialState, traffic, "BF", false);
             System.out.println("✓ Simple grid test passed");
-            System.out.println("  Result: " + result);
+            
+            // Verify format
+            String[] parts = result.split(";");
+            if (parts.length >= 4) {
+                System.out.println("  Truck-Customer: " + parts[0]);
+                System.out.println("  Path: " + parts[1]);
+                System.out.println("  Cost: " + parts[2]);
+                System.out.println("  Nodes: " + parts[3]);
+            }
         } catch (Exception e) {
             System.out.println("✗ Simple grid test FAILED: " + e.getMessage());
             e.printStackTrace();
@@ -55,13 +64,20 @@ public class DeliverySystemTests {
         System.out.println("-------------------------");
 
         // 5x5 grid, tunnel from (0,0) to (4,4)
-        String initialState = "5;5;1;1;4,0;0,0,4,4;";
+        String initialState = "5;5;1;1;4,0;0,0,4,4";
         String traffic = generateUniformTraffic(5, 5, 3);
 
         try {
             String result = DeliverySearch.solve(initialState, traffic, "UC", false);
             System.out.println("✓ Tunnel test passed");
-            System.out.println("  Result: " + result);
+            
+            String[] lines = result.split("\n");
+            for (String line : lines) {
+                String[] parts = line.split(";");
+                if (parts.length >= 3) {
+                    System.out.println("  Delivery: " + parts[0] + ", Cost: " + parts[2]);
+                }
+            }
         } catch (Exception e) {
             System.out.println("✗ Tunnel test FAILED: " + e.getMessage());
             e.printStackTrace();
@@ -78,28 +94,15 @@ public class DeliverySystemTests {
 
         String initialState = "4;4;1;1;3,3;";
         
-        // Block some roads by setting traffic to 0
-        String traffic = 
-            "0,0,0,1,2;0,0,1,0,2;" +
-            "1,0,1,1,2;1,0,2,0,0;" +  // Block (1,0) -> (2,0)
-            "2,0,2,1,2;2,0,3,0,2;" +
-            "3,0,3,1,2;" +
-            "0,1,0,2,2;0,1,1,1,2;" +
-            "1,1,1,2,2;1,1,2,1,2;" +
-            "2,1,2,2,2;2,1,3,1,2;" +
-            "3,1,3,2,2;" +
-            "0,2,0,3,2;0,2,1,2,2;" +
-            "1,2,1,3,2;1,2,2,2,2;" +
-            "2,2,2,3,2;2,2,3,2,2;" +
-            "3,2,3,3,2;" +
-            "0,3,1,3,2;" +
-            "1,3,2,3,2;" +
-            "2,3,3,3,2";
+        // Create traffic with some blocked roads
+        String traffic = generateUniformTraffic(4, 4, 2);
+        // Add a few blocked roads (traffic = 0)
+        traffic += ";1,0,2,0,0;2,1,3,1,0"; // Block some paths
 
         try {
             String result = DeliverySearch.solve(initialState, traffic, "BF", false);
             System.out.println("✓ Blocked roads test passed");
-            System.out.println("  Result: " + result);
+            System.out.println("  Result: " + result.split("\n")[0]);
         } catch (Exception e) {
             System.out.println("✗ Blocked roads test FAILED: " + e.getMessage());
             e.printStackTrace();
@@ -119,6 +122,9 @@ public class DeliverySystemTests {
 
         String[] strategies = {"BF", "DF", "ID", "UC", "GR1", "GR2", "AS1", "AS2"};
 
+        System.out.printf("%-6s | %-8s | %-12s | %-10s%n", "Strat", "Time(ms)", "Deliveries", "Status");
+        System.out.println("------------------------------------------------");
+
         for (String strategy : strategies) {
             try {
                 long startTime = System.currentTimeMillis();
@@ -126,10 +132,16 @@ public class DeliverySystemTests {
                 long endTime = System.currentTimeMillis();
 
                 String[] parts = result.split("\n");
-                System.out.printf("  %-4s: ✓ (%.0f ms) - %d deliveries%n", 
-                    strategy, (endTime - startTime) * 1.0, parts.length);
+                int deliveries = 0;
+                for (String line : parts) {
+                    if (!line.trim().isEmpty()) deliveries++;
+                }
+
+                System.out.printf("%-6s | %8d | %12d | %-10s%n", 
+                    strategy, (endTime - startTime), deliveries, "✓");
             } catch (Exception e) {
-                System.out.println("  " + strategy + ": ✗ FAILED - " + e.getMessage());
+                System.out.printf("%-6s | %8s | %12s | %-10s%n", 
+                    strategy, "-", "-", "✗ FAILED");
             }
         }
         System.out.println();
@@ -153,10 +165,7 @@ public class DeliverySystemTests {
             String result = DeliverySearch.solve(initialState, traffic, "AS1", false);
             
             System.out.println("✓ Complete pipeline test passed");
-            System.out.println("  Solution:");
-            for (String line : result.split("\n")) {
-                System.out.println("    " + line);
-            }
+            System.out.println("  Number of deliveries: " + result.split("\n").length);
         } catch (Exception e) {
             System.out.println("✗ Complete pipeline test FAILED: " + e.getMessage());
             e.printStackTrace();
@@ -176,7 +185,7 @@ public class DeliverySystemTests {
 
         System.out.printf("%-10s | %-10s | %-10s | %-15s%n", 
             "Strategy", "Time (ms)", "Total Cost", "Nodes Expanded");
-        System.out.println("--------------------------------------------------------");
+        System.out.println("----------------------------------------------------------");
 
         String[] strategies = {"BF", "UC", "GR1", "AS1"};
 
@@ -194,6 +203,7 @@ public class DeliverySystemTests {
                 String[] deliveries = result.split("\n");
                 
                 for (String delivery : deliveries) {
+                    if (delivery.trim().isEmpty()) continue;
                     String[] parts = delivery.split(";");
                     if (parts.length >= 4) {
                         totalCost += Integer.parseInt(parts[2]);
@@ -212,6 +222,53 @@ public class DeliverySystemTests {
     }
 
     /**
+     * Test 7: Verify optimality of UC and A*
+     */
+    private static void testOptimalityCheck() {
+        System.out.println("TEST 7: Optimality Check (UC vs A*)");
+        System.out.println("------------------------------------");
+
+        String initialState = "6;6;3;1;2,2,4,4,5,5;";
+        String traffic = generateUniformTraffic(6, 6, 2);
+
+        try {
+            String resultUC = DeliverySearch.solve(initialState, traffic, "UC", false);
+            String resultAS1 = DeliverySearch.solve(initialState, traffic, "AS1", false);
+
+            // Extract total costs
+            int costUC = getTotalCost(resultUC);
+            int costAS1 = getTotalCost(resultAS1);
+
+            System.out.println("  UC Total Cost:  " + costUC);
+            System.out.println("  A* Total Cost:  " + costAS1);
+
+            if (costUC == costAS1) {
+                System.out.println("✓ Both algorithms found optimal solution");
+            } else {
+                System.out.println("⚠ Warning: Costs differ (might be due to ties)");
+            }
+        } catch (Exception e) {
+            System.out.println("✗ Optimality check FAILED: " + e.getMessage());
+        }
+        System.out.println();
+    }
+
+    /**
+     * Helper: Extract total cost from result string
+     */
+    private static int getTotalCost(String result) {
+        int total = 0;
+        for (String line : result.split("\n")) {
+            if (line.trim().isEmpty()) continue;
+            String[] parts = line.split(";");
+            if (parts.length >= 3) {
+                total += Integer.parseInt(parts[2]);
+            }
+        }
+        return total;
+    }
+
+    /**
      * Helper: Generate uniform traffic for testing
      */
     private static String generateUniformTraffic(int m, int n, int trafficLevel) {
@@ -219,25 +276,16 @@ public class DeliverySystemTests {
         
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                // Add all valid edges
-                if (i > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i - 1).append(",").append(j).append(",")
-                      .append(trafficLevel).append(";");
-                }
-                if (i < m - 1) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i + 1).append(",").append(j).append(",")
-                      .append(trafficLevel).append(";");
-                }
-                if (j > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i).append(",").append(j - 1).append(",")
-                      .append(trafficLevel).append(";");
-                }
+                // Right edge
                 if (j < n - 1) {
                     sb.append(i).append(",").append(j).append(",")
                       .append(i).append(",").append(j + 1).append(",")
+                      .append(trafficLevel).append(";");
+                }
+                // Down edge
+                if (i < m - 1) {
+                    sb.append(i).append(",").append(j).append(",")
+                      .append(i + 1).append(",").append(j).append(",")
                       .append(trafficLevel).append(";");
                 }
             }

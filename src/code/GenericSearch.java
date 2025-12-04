@@ -5,8 +5,22 @@ import java.util.*;
 /**
  * Generic search framework implementing various search strategies.
  * Based on the algorithm from Lecture 2.
+ * 
+ * OPTIMIZATIONS:
+ * - BFS/DFS: Check explored before adding to frontier (reduces redundancy)
+ * - UCS/A*: Use bestCost map to avoid re-expanding with worse paths
+ * - Greedy: Simple explored set (not optimal, but efficient)
+ * 
+ * NOTE: This class contains only static methods and is extended for structure.
  */
 public abstract class GenericSearch {
+    
+    /**
+     * Default constructor for subclasses
+     */
+    public GenericSearch() {
+        // Empty constructor - subclasses can extend
+    }
 
     /**
      * Result container for search operations.
@@ -63,22 +77,29 @@ public abstract class GenericSearch {
     /**
      * Breadth-First Search (BFS)
      * Uses FIFO queue, explores level by level.
+     * Complete and optimal for unit costs.
+     * Time: O(b^d), Space: O(b^d) where b=branching factor, d=depth
      */
     private static <S, A> SearchResult<S, A> breadthFirstSearch(Problem<S, A> problem) {
         Queue<Node<S, A>> frontier = new LinkedList<>();
         Set<S> explored = new HashSet<>();
+        Set<S> inFrontier = new HashSet<>(); // Track states in frontier
         int nodesExpanded = 0;
 
         Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
         frontier.add(root);
+        inFrontier.add(root.state);
 
         while (!frontier.isEmpty()) {
             Node<S, A> node = frontier.poll();
+            inFrontier.remove(node.state);
 
+            // Goal test AFTER removing from frontier
             if (problem.isGoal(node.state)) {
                 return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
             }
 
+            // Skip if already explored
             if (explored.contains(node.state)) {
                 continue;
             }
@@ -86,10 +107,12 @@ public abstract class GenericSearch {
             explored.add(node.state);
             nodesExpanded++;
 
+            // Expand node
             for (A action : problem.actions(node.state)) {
                 S childState = problem.result(node.state, action);
                 
-                if (!explored.contains(childState)) {
+                // Only add if not explored and not already in frontier
+                if (!explored.contains(childState) && !inFrontier.contains(childState)) {
                     double stepCost = problem.stepCost(node.state, action, childState);
                     Node<S, A> child = new Node<>(
                         childState,
@@ -99,6 +122,7 @@ public abstract class GenericSearch {
                         node.pathCost + stepCost
                     );
                     frontier.add(child);
+                    inFrontier.add(childState);
                 }
             }
         }
@@ -109,6 +133,8 @@ public abstract class GenericSearch {
     /**
      * Depth-First Search (DFS)
      * Uses LIFO stack, explores deepest nodes first.
+     * Not optimal, may get stuck in infinite paths.
+     * Time: O(b^m), Space: O(bm) where b=branching factor, m=max depth
      */
     private static <S, A> SearchResult<S, A> depthFirstSearch(Problem<S, A> problem) {
         Stack<Node<S, A>> frontier = new Stack<>();
@@ -121,10 +147,12 @@ public abstract class GenericSearch {
         while (!frontier.isEmpty()) {
             Node<S, A> node = frontier.pop();
 
+            // Goal test
             if (problem.isGoal(node.state)) {
                 return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
             }
 
+            // Skip if already explored
             if (explored.contains(node.state)) {
                 continue;
             }
@@ -132,7 +160,7 @@ public abstract class GenericSearch {
             explored.add(node.state);
             nodesExpanded++;
 
-            // Add children in reverse order for consistent behavior
+            // Add children in reverse order for consistent left-to-right expansion
             List<A> actions = problem.actions(node.state);
             for (int i = actions.size() - 1; i >= 0; i--) {
                 A action = actions.get(i);
@@ -158,6 +186,8 @@ public abstract class GenericSearch {
     /**
      * Iterative Deepening Search (IDS)
      * Combines benefits of BFS and DFS.
+     * Complete and optimal for unit costs.
+     * Time: O(b^d), Space: O(bd) where b=branching factor, d=depth
      */
     private static <S, A> SearchResult<S, A> iterativeDeepeningSearch(Problem<S, A> problem) {
         int totalNodesExpanded = 0;
@@ -170,7 +200,7 @@ public abstract class GenericSearch {
                 return new SearchResult<>(result.actions, result.cost, totalNodesExpanded);
             }
 
-            // Avoid infinite loops for unsolvable problems
+            // Safety: Stop if depth gets unreasonably large
             if (depthLimit > 1000) {
                 break;
             }
@@ -187,7 +217,7 @@ public abstract class GenericSearch {
             int depthLimit) {
         
         Stack<Node<S, A>> frontier = new Stack<>();
-        Set<S> explored = new HashSet<>();
+        Set<String> explored = new HashSet<>(); // Use path-based cycle detection
         int nodesExpanded = 0;
 
         Node<S, A> root = new Node<>(problem.initialState(), null, null, 0, 0);
@@ -204,11 +234,13 @@ public abstract class GenericSearch {
                 continue;
             }
 
-            if (explored.contains(node.state)) {
+            // Create unique key for this state at this depth
+            String key = node.state.toString() + "@" + node.depth;
+            if (explored.contains(key)) {
                 continue;
             }
 
-            explored.add(node.state);
+            explored.add(key);
             nodesExpanded++;
 
             List<A> actions = problem.actions(node.state);
@@ -216,17 +248,15 @@ public abstract class GenericSearch {
                 A action = actions.get(i);
                 S childState = problem.result(node.state, action);
                 
-                if (!explored.contains(childState)) {
-                    double stepCost = problem.stepCost(node.state, action, childState);
-                    Node<S, A> child = new Node<>(
-                        childState,
-                        node,
-                        action,
-                        node.depth + 1,
-                        node.pathCost + stepCost
-                    );
-                    frontier.push(child);
-                }
+                double stepCost = problem.stepCost(node.state, action, childState);
+                Node<S, A> child = new Node<>(
+                    childState,
+                    node,
+                    action,
+                    node.depth + 1,
+                    node.pathCost + stepCost
+                );
+                frontier.push(child);
             }
         }
 
@@ -236,6 +266,9 @@ public abstract class GenericSearch {
     /**
      * Uniform Cost Search (UCS)
      * Expands node with lowest path cost g(n).
+     * Guarantees optimal solution.
+     * Time complexity: Exponential in path cost
+     * Space complexity: Exponential in path cost
      */
     private static <S, A> SearchResult<S, A> uniformCostSearch(Problem<S, A> problem) {
         PriorityQueue<Node<S, A>> frontier = new PriorityQueue<>(
@@ -251,6 +284,7 @@ public abstract class GenericSearch {
         while (!frontier.isEmpty()) {
             Node<S, A> node = frontier.poll();
 
+            // Goal test
             if (problem.isGoal(node.state)) {
                 return new SearchResult<>(extractPath(node), node.pathCost, nodesExpanded);
             }
@@ -288,6 +322,8 @@ public abstract class GenericSearch {
     /**
      * Greedy Best-First Search
      * Expands node with lowest heuristic value h(n).
+     * Not optimal, but can be very fast.
+     * Time and Space: O(b^m) where b=branching factor, m=max depth
      */
     private static <S, A> SearchResult<S, A> greedySearch(
             Problem<S, A> problem,
@@ -339,6 +375,8 @@ public abstract class GenericSearch {
     /**
      * A* Search
      * Expands node with lowest f(n) = g(n) + h(n).
+     * Optimal if heuristic is admissible.
+     * Time and Space: Exponential in worst case, but efficient with good heuristic
      */
     private static <S, A> SearchResult<S, A> aStarSearch(
             Problem<S, A> problem,
