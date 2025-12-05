@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 const GridVisualization = ({ gridData, onAnimationComplete }) => {
   const svgRef = useRef(null);
@@ -6,8 +6,17 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const cellSize = 50;
+  // Dynamically scale cells so the canvas stays visually large, even for small grids.
   const margin = 20;
+  const baseCellSize = 50;
+  const minCanvasSize = 700; // keep grid canvas generously sized
+  const cellSize = Math.max(
+    baseCellSize,
+    Math.floor(
+      (minCanvasSize - 2 * margin) /
+        Math.max(gridData?.rows || 1, gridData?.columns || 1)
+    )
+  );
 
   useEffect(() => {
     if (gridData && gridData.steps) {
@@ -20,13 +29,16 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
     const edges = [];
     const seen = new Set(); // Track unique bidirectional edges
 
-    const parts = trafficStr.split(';');
-    parts.forEach(part => {
+    const parts = trafficStr.split(";");
+    parts.forEach((part) => {
       if (part.trim()) {
-        const [x1, y1, x2, y2, cost] = part.split(',').map(Number);
+        const [x1, y1, x2, y2, cost] = part.split(",").map(Number);
 
         // Create a unique key for bidirectional edge (sort coordinates)
-        const key = `${Math.min(x1, x2)},${Math.min(y1, y2)},${Math.max(x1, x2)},${Math.max(y1, y2)}`;
+        const key = `${Math.min(x1, x2)},${Math.min(y1, y2)},${Math.max(
+          x1,
+          x2
+        )},${Math.max(y1, y2)}`;
 
         // Only include one direction per bidirectional edge
         // Since both directions now have the same cost, we can pick either
@@ -42,7 +54,10 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
   const animateTrucks = (steps) => {
     setIsAnimating(true);
     setCurrentStep(0);
-    const initialPositions = gridData.stores.map(store => ({ ...store, truckId: gridData.stores.indexOf(store) }));
+    const initialPositions = gridData.stores.map((store) => ({
+      ...store,
+      truckId: gridData.stores.indexOf(store),
+    }));
     setTruckPositions(initialPositions);
 
     let stepIndex = 0;
@@ -50,15 +65,17 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
       if (stepIndex < steps.length) {
         const step = steps[stepIndex];
         // Parse step to update truck positions
-        if (step.includes('moved to')) {
+        if (step.includes("moved to")) {
           const match = step.match(/Truck (\d+) moved to \((\d+),(\d+)\)/);
           if (match) {
             const truckId = parseInt(match[1]);
             const x = parseInt(match[2]);
             const y = parseInt(match[3]);
-            setTruckPositions(prev => prev.map(truck =>
-              truck.truckId === truckId ? { ...truck, x, y } : truck
-            ));
+            setTruckPositions((prev) =>
+              prev.map((truck) =>
+                truck.truckId === truckId ? { ...truck, x, y } : truck
+              )
+            );
           }
         }
         setCurrentStep(stepIndex);
@@ -85,7 +102,14 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
     <div className="grid-visualization">
       <svg ref={svgRef} width={width} height={height} className="grid-svg">
         {/* Grid background */}
-        <rect x={margin} y={margin} width={columns * cellSize} height={rows * cellSize} fill="#f0f0f0" stroke="#ccc" />
+        <rect
+          x={margin}
+          y={margin}
+          width={columns * cellSize}
+          height={rows * cellSize}
+          fill="#f0f0f0"
+          stroke="#ccc"
+        />
 
         {/* Grid lines */}
         {Array.from({ length: rows + 1 }, (_, i) => (
@@ -180,27 +204,32 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
         })}
 
         {/* Stores */}
-        {stores.map((store, index) => (
-          <g key={`store-${index}`}>
-            <rect
-              x={margin + store.y * cellSize + 5}
-              y={margin + store.x * cellSize + 5}
-              width={cellSize - 10}
-              height={cellSize - 10}
-              fill="#4CAF50"
-              rx="5"
-            />
-            <text
-              x={margin + store.y * cellSize + cellSize / 2}
-              y={margin + store.x * cellSize + cellSize / 2 + 5}
-              textAnchor="middle"
-              fill="white"
-              fontSize="12"
-            >
-              S{index}
-            </text>
-          </g>
-        ))}
+        {stores.map((store, index) => {
+          const storeSize = Math.max(14, Math.min(32, cellSize - 24));
+          const offset = (cellSize - storeSize) / 2;
+
+          return (
+            <g key={`store-${index}`}>
+              <rect
+                x={margin + store.y * cellSize + offset}
+                y={margin + store.x * cellSize + offset}
+                width={storeSize}
+                height={storeSize}
+                fill="#4CAF50"
+                rx="4"
+              />
+              <text
+                x={margin + store.y * cellSize + cellSize / 2}
+                y={margin + store.x * cellSize + cellSize / 2 + 5}
+                textAnchor="middle"
+                fill="white"
+                fontSize="12"
+              >
+                S{index}
+              </text>
+            </g>
+          );
+        })}
 
         {/* Customers */}
         {customers.map((customer, index) => (
@@ -252,43 +281,108 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
         <h3>Legend</h3>
         <div className="legend-items">
           <div className="legend-item">
-            <div className="legend-color" style={{backgroundColor: '#4CAF50'}}></div>
+            <div
+              className="legend-color"
+              style={{ backgroundColor: "#4CAF50" }}
+            ></div>
             <span>Stores</span>
           </div>
           <div className="legend-item">
-            <div className="legend-color" style={{backgroundColor: '#2196F3'}}></div>
+            <div
+              className="legend-color"
+              style={{ backgroundColor: "#2196F3" }}
+            ></div>
             <span>Customers</span>
           </div>
           <div className="legend-item">
-            <div className="legend-color" style={{backgroundColor: '#FF5722'}}></div>
+            <div
+              className="legend-color"
+              style={{ backgroundColor: "#FF5722" }}
+            ></div>
             <span>Trucks</span>
           </div>
           <div className="legend-item">
             <svg width="40" height="15">
-              <line x1="0" y1="7" x2="40" y2="7" stroke="#000" strokeWidth="3"/>
-              <text x="20" y="4" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">0</text>
+              <line
+                x1="0"
+                y1="7"
+                x2="40"
+                y2="7"
+                stroke="#000"
+                strokeWidth="3"
+              />
+              <text
+                x="20"
+                y="4"
+                textAnchor="middle"
+                fontSize="10"
+                fill="#333"
+                fontWeight="bold"
+              >
+                0
+              </text>
             </svg>
             <span>Blocked Path</span>
           </div>
           <div className="legend-item">
             <svg width="40" height="15">
-              <line x1="0" y1="7" x2="40" y2="7" stroke="hsl(100, 70%, 50%)" strokeWidth="2"/>
-              <text x="20" y="4" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">1</text>
+              <line
+                x1="0"
+                y1="7"
+                x2="40"
+                y2="7"
+                stroke="hsl(100, 70%, 50%)"
+                strokeWidth="2"
+              />
+              <text
+                x="20"
+                y="4"
+                textAnchor="middle"
+                fontSize="10"
+                fill="#333"
+                fontWeight="bold"
+              >
+                1
+              </text>
             </svg>
             <span>Low Traffic</span>
           </div>
           <div className="legend-item">
             <svg width="40" height="15">
-              <line x1="0" y1="7" x2="40" y2="7" stroke="hsl(60, 70%, 50%)" strokeWidth="3"/>
-              <text x="20" y="4" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">4</text>
+              <line
+                x1="0"
+                y1="7"
+                x2="40"
+                y2="7"
+                stroke="hsl(60, 70%, 50%)"
+                strokeWidth="3"
+              />
+              <text
+                x="20"
+                y="4"
+                textAnchor="middle"
+                fontSize="10"
+                fill="#333"
+                fontWeight="bold"
+              >
+                4
+              </text>
             </svg>
             <span>High Traffic</span>
           </div>
           <div className="legend-item">
             <svg width="40" height="10">
-              <line x1="0" y1="5" x2="40" y2="5" stroke="#ff00ff" strokeWidth="3" strokeDasharray="5,5"/>
-              <circle cx="10" cy="5" r="3" fill="#ff00ff"/>
-              <circle cx="30" cy="5" r="3" fill="#ff00ff"/>
+              <line
+                x1="0"
+                y1="5"
+                x2="40"
+                y2="5"
+                stroke="#ff00ff"
+                strokeWidth="3"
+                strokeDasharray="5,5"
+              />
+              <circle cx="10" cy="5" r="3" fill="#ff00ff" />
+              <circle cx="30" cy="5" r="3" fill="#ff00ff" />
             </svg>
             <span>Tunnel</span>
           </div>
@@ -297,7 +391,9 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
 
       {isAnimating && (
         <div className="animation-controls">
-          <p>Step {currentStep + 1} of {gridData.steps.length}</p>
+          <p>
+            Step {currentStep + 1} of {gridData.steps.length}
+          </p>
           <p>{gridData.steps[currentStep]}</p>
         </div>
       )}
