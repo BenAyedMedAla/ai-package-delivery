@@ -342,7 +342,7 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
                 fill="#333"
                 fontWeight="bold"
               >
-                1
+                1-2
               </text>
             </svg>
             <span>Low Traffic</span>
@@ -354,7 +354,30 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
                 y1="7"
                 x2="40"
                 y2="7"
-                stroke="hsl(60, 70%, 50%)"
+                stroke="hsl(60, 100%, 50%)"
+                strokeWidth="2.5"
+              />
+              <text
+                x="20"
+                y="4"
+                textAnchor="middle"
+                fontSize="10"
+                fill="#333"
+                fontWeight="bold"
+              >
+                3
+              </text>
+            </svg>
+            <span>Medium Traffic</span>
+          </div>
+          <div className="legend-item">
+            <svg width="40" height="15">
+              <line
+                x1="0"
+                y1="7"
+                x2="40"
+                y2="7"
+                stroke="hsl(30, 100%, 50%)"
                 strokeWidth="3"
               />
               <text
