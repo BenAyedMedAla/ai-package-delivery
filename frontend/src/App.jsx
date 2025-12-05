@@ -1,0 +1,100 @@
+import { useState } from 'react';
+import Controls from './components/Controls';
+import GridVisualization from './components/GridVisualization';
+import Metrics from './components/Metrics';
+import { generateGrid, chooseStrategy } from './services/api';
+import './App.css';
+
+function App() {
+  const [gridData, setGridData] = useState(null);
+  const [strategyResult, setStrategyResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleGenerateGrid = async (gridRequest) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await generateGrid(gridRequest);
+      setGridData(data);
+      setStrategyResult(null); // Reset strategy results when new grid is generated
+    } catch (err) {
+      setError('Failed to generate grid: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChooseStrategy = async (strategyRequest) => {
+    if (!gridData) {
+      setError('Please generate a grid first');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await chooseStrategy(strategyRequest);
+      if (result.steps) {
+        // Single strategy with steps
+        setStrategyResult({ steps: result.steps, metrics: result.metrics });
+        setGridData(prev => ({ ...prev, steps: result.steps }));
+      } else if (result.length) {
+        // All strategies
+        setStrategyResult({ allStrategies: result });
+      }
+    } catch (err) {
+      setError('Failed to run strategy: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAnimationComplete = () => {
+    console.log('Animation completed');
+  };
+
+  return (
+    <div className="app">
+      <header>
+        <h1>AI Package Delivery Visualization</h1>
+      </header>
+
+      <div className="main-content">
+        <div className="left-panel">
+          <Controls
+            onGenerateGrid={handleGenerateGrid}
+            onChooseStrategy={handleChooseStrategy}
+            isLoading={isLoading}
+          />
+          <Metrics
+            metrics={strategyResult?.metrics}
+            steps={strategyResult?.steps}
+          />
+          {strategyResult?.allStrategies && (
+            <div className="all-strategies">
+              <h2>All Strategies Results</h2>
+              {strategyResult.allStrategies.map((strat, index) => (
+                <div key={index} className="strategy-result">
+                  <h3>{strat.displayName}</h3>
+                  <p>Time: {strat.time}ms, Nodes: {strat.nodesExpanded}, Cost: {strat.totalCost}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="right-panel">
+          <GridVisualization
+            gridData={gridData}
+            onAnimationComplete={handleAnimationComplete}
+          />
+        </div>
+      </div>
+
+      {error && <div className="error">{error}</div>}
+      {isLoading && <div className="loading">Loading...</div>}
+    </div>
+  );
+}
+
+export default App;

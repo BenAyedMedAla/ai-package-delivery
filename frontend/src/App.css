@@ -1,0 +1,169 @@
+.app {
+  font-family: Arial, sans-serif;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.main-content {
+  display: flex;
+  gap: 20px;
+}
+
+.left-panel {
+  flex: 1;
+  max-width: 400px;
+}
+
+.right-panel {
+  flex: 2;
+}
+
+.controls {
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.grid-inputs, .strategy-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+input, select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button {
+  padding: 10px 15px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.metrics {
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+}
+
+.steps {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.step {
+  padding: 5px;
+  background: white;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.grid-visualization {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.grid-placeholder {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+}
+
+.grid-svg {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.animation-controls {
+  margin-top: 20px;
+  text-align: center;
+  padding: 10px;
+  background: #e9ecef;
+  border-radius: 4px;
+}
+
+.error {
+  color: red;
+  background: #ffe6e6;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 20px;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.all-strategies {
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.strategy-result {
+  background: white;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
+.strategy-result h3 {
+  margin: 0 0 5px 0;
+}
+
+.strategy-result p {
+  margin: 0;
+  font-size: 14px;
+}
