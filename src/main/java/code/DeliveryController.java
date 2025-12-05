@@ -195,7 +195,10 @@ public class DeliveryController {
             // Update truck position
             currentTruckPositions.set(truckIdx, goalPos);
 
-            // Truck returns to store (but don't record steps for return)
+            // Add delivery completion step
+            steps.add("Step " + steps.size() + ": Delivery completed for Customer " + customerIdx + " by Truck " + truckIdx + ", returning to Store " + truckIdx);
+
+            // Truck returns to store
             State storeLocation = ds.getStores().get(truckIdx);
             currentTruckPositions.set(truckIdx, storeLocation);
 
