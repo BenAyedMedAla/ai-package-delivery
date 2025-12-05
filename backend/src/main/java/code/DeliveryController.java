@@ -66,70 +66,30 @@ public class DeliveryController {
             }
         }
 
-        // Create grid representation (simple empty grid)
+        // Create grid representation with coordinates
         List<List<String>> gridData = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             List<String> row = new ArrayList<>();
             for (int j = 0; j < columns; j++) {
-                row.add(".");
+                row.add("(" + i + "," + j + ")");
             }
             gridData.add(row);
         }
 
-        // Parse traffic into 2D array (default traffic value is 1)
-        List<List<Integer>> trafficGrid = new ArrayList<>();
-        Random rand = new Random();
-        for (int i = 0; i < rows; i++) {
-            List<Integer> row = new ArrayList<>();
-            for (int j = 0; j < columns; j++) {
-                // 10% chance of blocked cell (0), otherwise random traffic 1-4
-                int trafficValue = rand.nextInt(100) < 10 ? 0 : rand.nextInt(4) + 1;
-                row.add(trafficValue);
-            }
-            trafficGrid.add(row);
-        }
-
-        // Ensure stores and customers are not blocked
-        for (Position store : stores) {
-            if (store.getX() >= 0 && store.getX() < rows && store.getY() >= 0 && store.getY() < columns) {
-                if (trafficGrid.get(store.getX()).get(store.getY()) == 0) {
-                    trafficGrid.get(store.getX()).set(store.getY(), 1);
-                }
-            }
-        }
-        for (Position customer : customers) {
-            if (customer.getX() >= 0 && customer.getX() < rows && customer.getY() >= 0 && customer.getY() < columns) {
-                if (trafficGrid.get(customer.getX()).get(customer.getY()) == 0) {
-                    trafficGrid.get(customer.getX()).set(customer.getY(), 1);
-                }
-            }
-        }
-
-        // Parse traffic string: format is "x1,y1,x2,y2,cost;"
-        // This is for edge costs, not used in the grid visualization
+        // Parse traffic data into Map
+        Map<String, Integer> trafficMap = new HashMap<>();
         if (traffic != null && !traffic.isEmpty()) {
-            String[] trafficParts = traffic.split(";");
-            for (String part : trafficParts) {
-                if (!part.trim().isEmpty()) {
-                    String[] coords = part.split(",");
-                    if (coords.length >= 5) {
-                        int x1 = Integer.parseInt(coords[0].trim());
-                        int y1 = Integer.parseInt(coords[1].trim());
-                        int cost = Integer.parseInt(coords[4].trim());
-                        // Store traffic cost at source position
-                        // 0 = blocked route
-                        if (x1 >= 0 && x1 < rows && y1 >= 0 && y1 < columns) {
-                            // Only override if not already blocked
-                            if (trafficGrid.get(x1).get(y1) != 0) {
-                                trafficGrid.get(x1).set(y1, cost);
-                            }
-                        }
-                    }
+            for (String edge : traffic.split(";")) {
+                String[] edgeParts = edge.split(",");
+                if (edgeParts.length >= 5) {
+                    String key = edgeParts[0] + "," + edgeParts[1] + "," + edgeParts[2] + "," + edgeParts[3];
+                    int cost = Integer.parseInt(edgeParts[4]);
+                    trafficMap.put(key, cost);
                 }
             }
         }
 
-        return new Grid(rows, columns, gridData, stores, customers, tunnels, trafficGrid);
+        return new Grid(rows, columns, gridData, stores, customers, tunnels, trafficMap);
     }
 
     @PostMapping("/choose-strategy")

@@ -1,6 +1,7 @@
 package code;
 
 import java.util.List;
+import java.util.Map;
 
 public class Grid {
     private int rows;
@@ -9,11 +10,11 @@ public class Grid {
     private List<Position> stores;
     private List<Position> customers;
     private List<TunnelDto> tunnels;
-    private List<List<Integer>> traffic;
+    private Map<String, Integer> traffic;
 
     public Grid() {}
 
-    public Grid(int rows, int columns, List<List<String>> grid, List<Position> stores, List<Position> customers, List<TunnelDto> tunnels, List<List<Integer>> traffic) {
+    public Grid(int rows, int columns, List<List<String>> grid, List<Position> stores, List<Position> customers, List<TunnelDto> tunnels, Map<String, Integer> traffic) {
         this.rows = rows;
         this.columns = columns;
         this.grid = grid;
@@ -42,6 +43,6 @@ public class Grid {
     public List<TunnelDto> getTunnels() { return tunnels; }
     public void setTunnels(List<TunnelDto> tunnels) { this.tunnels = tunnels; }
 
-    public List<List<Integer>> getTraffic() { return traffic; }
-    public void setTraffic(List<List<Integer>> traffic) { this.traffic = traffic; }
+    public Map<String, Integer> getTraffic() { return traffic; }
+    public void setTraffic(Map<String, Integer> traffic) { this.traffic = traffic; }
 }

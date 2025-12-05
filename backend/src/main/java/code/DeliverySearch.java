@@ -513,32 +513,35 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
     public static String GenTraffic(int m, int n) {
         StringBuilder sb = new StringBuilder();
         Random rand = new Random();
-        
+        Map<String, Integer> trafficMap = new HashMap<>();
+
+        // Generate bidirectional traffic
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                if (i > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i - 1).append(",").append(j).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
-                if (i < m - 1) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i + 1).append(",").append(j).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
-                if (j > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i).append(",").append(j - 1).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
+                // Right neighbor
                 if (j < n - 1) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i).append(",").append(j + 1).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
+                    int cost = rand.nextInt(4) + 1;
+                    String key1 = i + "," + j + "," + i + "," + (j + 1);
+                    String key2 = i + "," + (j + 1) + "," + i + "," + j;
+                    trafficMap.put(key1, cost);
+                    trafficMap.put(key2, cost);
+                }
+                // Down neighbor
+                if (i < m - 1) {
+                    int cost = rand.nextInt(4) + 1;
+                    String key1 = i + "," + j + "," + (i + 1) + "," + j;
+                    String key2 = (i + 1) + "," + j + "," + i + "," + j;
+                    trafficMap.put(key1, cost);
+                    trafficMap.put(key2, cost);
                 }
             }
         }
-        
+
+        // Convert to string format
+        for (Map.Entry<String, Integer> entry : trafficMap.entrySet()) {
+            sb.append(entry.getKey()).append(",").append(entry.getValue()).append(";");
+        }
+
         if (sb.length() > 0) sb.setLength(sb.length() - 1);
         return sb.toString();
     }
