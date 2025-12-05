@@ -51,7 +51,7 @@ const parseGridData = (
   // Mark stores
   gridData.stores.forEach((store, index) => {
     if (store.x >= 0 && store.x < m && store.y >= 0 && store.y < n) {
-      grid[store.x][store.y] = { type: "store", storeId: index + 1 };
+      grid[store.x][store.y] = { type: "store", storeId: index };
     }
   });
 
@@ -65,7 +65,7 @@ const parseGridData = (
     ) {
       grid[customer.x][customer.y] = {
         type: "customer",
-        customerId: index + 1,
+        customerId: index,
       };
     }
   });
@@ -83,7 +83,7 @@ const parseGridData = (
         grid[tunnel.from.x][tunnel.from.y] = {
           type: "tunnel",
           isTunnelEntrance: true,
-          tunnelId: index + 1,
+          tunnelId: index,
         };
       }
     }
@@ -97,7 +97,7 @@ const parseGridData = (
         grid[tunnel.to.x][tunnel.to.y] = {
           type: "tunnel",
           isTunnelEntrance: true,
-          tunnelId: index + 1,
+          tunnelId: index,
         };
       }
     }

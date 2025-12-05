@@ -34,21 +34,21 @@ export const GridCell = ({ cell, row, col }: GridCellProps) => {
   };
 
   const getBadge = () => {
-    if (cell.type === "store" && cell.storeId) {
+    if (cell.type === "store" && cell.storeId !== undefined) {
       return (
         <span className="absolute top-1 right-1 text-xs font-bold text-background">
           S{cell.storeId}
         </span>
       );
     }
-    if (cell.type === "customer" && cell.customerId) {
+    if (cell.type === "customer" && cell.customerId !== undefined) {
       return (
         <span className="absolute top-1 right-1 text-xs font-bold text-background">
           C{cell.customerId}
         </span>
       );
     }
-    if (cell.type === "tunnel" && cell.tunnelId) {
+    if (cell.type === "tunnel" && cell.tunnelId !== undefined) {
       return (
         <span className="absolute top-1 right-1 text-xs font-bold text-background">
           T{cell.tunnelId}
