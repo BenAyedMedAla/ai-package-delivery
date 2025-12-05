@@ -21,6 +21,13 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
   useEffect(() => {
     if (gridData && gridData.steps) {
       animateTrucks(gridData.steps);
+    } else if (gridData && gridData.stores) {
+      // Initialize trucks at store positions when grid is first generated
+      const initialPositions = gridData.stores.map((store, index) => ({
+        ...store,
+        truckId: index,
+      }));
+      setTruckPositions(initialPositions);
     }
   }, [gridData]);
 
