@@ -347,13 +347,12 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         for (String edge : trafficStr.split(";")) {
             String[] e = edge.split(",");
             if (e.length < 5) continue;
-            
+
             State from = new State(Integer.parseInt(e[0]), Integer.parseInt(e[1]));
             State to = new State(Integer.parseInt(e[2]), Integer.parseInt(e[3]));
             int cost = Integer.parseInt(e[4]);
 
-            if (cost == 0) continue;
-
+            // Include all edges, including blocked ones (cost = 0)
             edgeTraffic.putIfAbsent(from, new HashMap<>());
             edgeTraffic.get(from).put(to, cost);
         }
@@ -513,32 +512,37 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
     public static String GenTraffic(int m, int n) {
         StringBuilder sb = new StringBuilder();
         Random rand = new Random();
-        
+
+        // Generate costs for "canonical" directions only (right and down)
+        // This ensures bidirectional edges have the same cost
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                if (i > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i - 1).append(",").append(j).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
-                if (i < m - 1) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i + 1).append(",").append(j).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
-                if (j > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i).append(",").append(j - 1).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
+                // Generate cost for moving right (if possible)
                 if (j < n - 1) {
+                    int cost = rand.nextInt(5); // 0-4, where 0 = blocked
+                    // Add both directions with same cost
                     sb.append(i).append(",").append(j).append(",")
                       .append(i).append(",").append(j + 1).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
+                      .append(cost).append(";");
+                    sb.append(i).append(",").append(j + 1).append(",")
+                      .append(i).append(",").append(j).append(",")
+                      .append(cost).append(";");
+                }
+
+                // Generate cost for moving down (if possible)
+                if (i < m - 1) {
+                    int cost = rand.nextInt(5); // 0-4, where 0 = blocked
+                    // Add both directions with same cost
+                    sb.append(i).append(",").append(j).append(",")
+                      .append(i + 1).append(",").append(j).append(",")
+                      .append(cost).append(";");
+                    sb.append(i + 1).append(",").append(j).append(",")
+                      .append(i).append(",").append(j).append(",")
+                      .append(cost).append(";");
                 }
             }
         }
-        
+
         if (sb.length() > 0) sb.setLength(sb.length() - 1);
         return sb.toString();
     }

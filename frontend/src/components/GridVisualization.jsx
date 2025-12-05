@@ -18,11 +18,22 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
   const parseTraffic = (trafficStr) => {
     if (!trafficStr) return [];
     const edges = [];
+    const seen = new Set(); // Track unique bidirectional edges
+
     const parts = trafficStr.split(';');
     parts.forEach(part => {
       if (part.trim()) {
         const [x1, y1, x2, y2, cost] = part.split(',').map(Number);
-        edges.push({ from: { x: x1, y: y1 }, to: { x: x2, y: y2 }, cost });
+
+        // Create a unique key for bidirectional edge (sort coordinates)
+        const key = `${Math.min(x1, x2)},${Math.min(y1, y2)},${Math.max(x1, x2)},${Math.max(y1, y2)}`;
+
+        // Only include one direction per bidirectional edge
+        // Since both directions now have the same cost, we can pick either
+        if (!seen.has(key)) {
+          seen.add(key);
+          edges.push({ from: { x: x1, y: y1 }, to: { x: x2, y: y2 }, cost });
+        }
       }
     });
     return edges;
@@ -104,19 +115,43 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
           const y1 = margin + edge.from.x * cellSize + cellSize / 2;
           const x2 = margin + edge.to.y * cellSize + cellSize / 2;
           const y2 = margin + edge.to.x * cellSize + cellSize / 2;
-          const color = edge.cost === 0 ? '#000' : `hsl(${120 - edge.cost * 20}, 70%, 50%)`;
-          const strokeWidth = Math.max(1, edge.cost / 2);
+
+          // Determine color and thickness based on cost
+          let color, strokeWidth;
+          if (edge.cost === 0) {
+            color = "#000"; // Black for blocked paths
+            strokeWidth = "3";
+          } else {
+            color = `hsl(${120 - edge.cost * 20}, 70%, 50%)`; // Green to red gradient
+            strokeWidth = Math.max(1, edge.cost / 2);
+          }
+
+          // Calculate text position (middle of the line)
+          const textX = (x1 + x2) / 2;
+          const textY = (y1 + y2) / 2;
 
           return (
-            <line
-              key={`edge-${index}`}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke={color}
-              strokeWidth={strokeWidth}
-            />
+            <g key={`edge-${index}`}>
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={color}
+                strokeWidth={strokeWidth}
+              />
+              {/* Traffic value label */}
+              <text
+                x={textX}
+                y={textY - 3}
+                textAnchor="middle"
+                fontSize="10"
+                fill="#333"
+                fontWeight="bold"
+              >
+                {edge.cost}
+              </text>
+            </g>
           );
         })}
 
@@ -211,6 +246,54 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
           </g>
         ))}
       </svg>
+
+      {/* Legend */}
+      <div className="legend">
+        <h3>Legend</h3>
+        <div className="legend-items">
+          <div className="legend-item">
+            <div className="legend-color" style={{backgroundColor: '#4CAF50'}}></div>
+            <span>Stores</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-color" style={{backgroundColor: '#2196F3'}}></div>
+            <span>Customers</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-color" style={{backgroundColor: '#FF5722'}}></div>
+            <span>Trucks</span>
+          </div>
+          <div className="legend-item">
+            <svg width="40" height="15">
+              <line x1="0" y1="7" x2="40" y2="7" stroke="#000" strokeWidth="3"/>
+              <text x="20" y="4" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">0</text>
+            </svg>
+            <span>Blocked Path</span>
+          </div>
+          <div className="legend-item">
+            <svg width="40" height="15">
+              <line x1="0" y1="7" x2="40" y2="7" stroke="hsl(100, 70%, 50%)" strokeWidth="2"/>
+              <text x="20" y="4" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">1</text>
+            </svg>
+            <span>Low Traffic</span>
+          </div>
+          <div className="legend-item">
+            <svg width="40" height="15">
+              <line x1="0" y1="7" x2="40" y2="7" stroke="hsl(60, 70%, 50%)" strokeWidth="3"/>
+              <text x="20" y="4" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">4</text>
+            </svg>
+            <span>High Traffic</span>
+          </div>
+          <div className="legend-item">
+            <svg width="40" height="10">
+              <line x1="0" y1="5" x2="40" y2="5" stroke="#ff00ff" strokeWidth="3" strokeDasharray="5,5"/>
+              <circle cx="10" cy="5" r="3" fill="#ff00ff"/>
+              <circle cx="30" cy="5" r="3" fill="#ff00ff"/>
+            </svg>
+            <span>Tunnel</span>
+          </div>
+        </div>
+      </div>
 
       {isAnimating && (
         <div className="animation-controls">
