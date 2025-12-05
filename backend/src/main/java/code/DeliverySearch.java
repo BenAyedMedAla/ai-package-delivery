@@ -515,12 +515,12 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         Random rand = new Random();
         Map<String, Integer> trafficMap = new HashMap<>();
 
-        // Generate bidirectional traffic
+        // Generate bidirectional traffic (0 = blocked edge, 1-4 = travel cost)
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
                 // Right neighbor
                 if (j < n - 1) {
-                    int cost = rand.nextInt(4) + 1;
+                    int cost = rand.nextInt(5); // allow 0 to represent a blocked road
                     String key1 = i + "," + j + "," + i + "," + (j + 1);
                     String key2 = i + "," + (j + 1) + "," + i + "," + j;
                     trafficMap.put(key1, cost);
@@ -528,7 +528,7 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
                 }
                 // Down neighbor
                 if (i < m - 1) {
-                    int cost = rand.nextInt(4) + 1;
+                    int cost = rand.nextInt(5); // allow 0 to represent a blocked road
                     String key1 = i + "," + j + "," + (i + 1) + "," + j;
                     String key2 = (i + 1) + "," + j + "," + i + "," + j;
                     trafficMap.put(key1, cost);

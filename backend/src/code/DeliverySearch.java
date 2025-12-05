@@ -509,26 +509,26 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                if (i > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i - 1).append(",").append(j).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
-                if (i < m - 1) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i + 1).append(",").append(j).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
-                if (j > 0) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i).append(",").append(j - 1).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
-                if (j < n - 1) {
-                    sb.append(i).append(",").append(j).append(",")
-                      .append(i).append(",").append(j + 1).append(",")
-                      .append(rand.nextInt(4) + 1).append(";");
-                }
+                                if (i > 0) {
+                                        sb.append(i).append(",").append(j).append(",")
+                                            .append(i - 1).append(",").append(j).append(",")
+                                            .append(rand.nextInt(5)).append(";"); // 0 blocks the road, 1-4 = cost
+                                }
+                                if (i < m - 1) {
+                                        sb.append(i).append(",").append(j).append(",")
+                                            .append(i + 1).append(",").append(j).append(",")
+                                            .append(rand.nextInt(5)).append(";");
+                                }
+                                if (j > 0) {
+                                        sb.append(i).append(",").append(j).append(",")
+                                            .append(i).append(",").append(j - 1).append(",")
+                                            .append(rand.nextInt(5)).append(";");
+                                }
+                                if (j < n - 1) {
+                                        sb.append(i).append(",").append(j).append(",")
+                                            .append(i).append(",").append(j + 1).append(",")
+                                            .append(rand.nextInt(5)).append(";");
+                                }
             }
         }
         
