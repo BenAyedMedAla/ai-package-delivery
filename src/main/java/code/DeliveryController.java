@@ -64,17 +64,15 @@ public class DeliveryController {
             }
         }
 
-        // Create grid representation (simple empty grid)
-        List<List<String>> gridData = new ArrayList<>();
+        // Create grid representation as list of all coordinates
+        List<Position> gridData = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
-            List<String> row = new ArrayList<>();
             for (int j = 0; j < columns; j++) {
-                row.add(".");
+                gridData.add(new Position(i, j));
             }
-            gridData.add(row);
         }
 
-        return new Grid(rows, columns, gridData, stores, customers, tunnels);
+        return new Grid(rows, columns, gridData, stores, customers, tunnels, traffic);
     }
 
     @PostMapping("/choose-strategy")
