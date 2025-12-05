@@ -117,14 +117,20 @@ The project strictly follows the required two-package layout: `code` and `tests`
 
 ## ▶️ Running the Project
 
-**Compile:**
+```bash
+cd backend
+
+mvn clear install
+
+mvn spring-boot:run
+```
+
+**another terminal:**
 
 ```bash
-javac -d out src/code/*.java src/tests/*.java
+cd frontend
 
-java -cp out code.Main
-or
-java -cp out tests.PlaceholderTest
-or
-java -cp out tests.DeliverySystemTests
+npm i
+
+npm run dev
 ```
