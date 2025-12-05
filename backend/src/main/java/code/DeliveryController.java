@@ -9,6 +9,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class DeliveryController {
 
     private String initialState;

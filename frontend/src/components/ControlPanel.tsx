@@ -1,7 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Play, RotateCcw, Sparkles } from "lucide-react";
 
@@ -12,6 +18,10 @@ interface ControlPanelProps {
   onTrucksChange: (num: number) => void;
   numCustomers: number;
   onCustomersChange: (num: number) => void;
+  gridRows: number;
+  onGridRowsChange: (rows: number) => void;
+  gridCols: number;
+  onGridColsChange: (cols: number) => void;
   onGenerateGrid: () => void;
   onPlanRoutes: () => void;
   onReset: () => void;
@@ -24,6 +34,7 @@ const strategies = [
   { value: "A*", label: "A* Search" },
   { value: "Greedy", label: "Greedy Best-First" },
   { value: "UCS", label: "Uniform Cost Search" },
+  { value: "all", label: "All Strategies" },
 ];
 
 export const ControlPanel = ({
@@ -33,6 +44,10 @@ export const ControlPanel = ({
   onTrucksChange,
   numCustomers,
   onCustomersChange,
+  gridRows,
+  onGridRowsChange,
+  gridCols,
+  onGridColsChange,
   onGenerateGrid,
   onPlanRoutes,
   onReset,
@@ -51,7 +66,10 @@ export const ControlPanel = ({
             Search Strategy
           </Label>
           <Select value={selectedStrategy} onValueChange={onStrategyChange}>
-            <SelectTrigger id="strategy" className="bg-background border-border">
+            <SelectTrigger
+              id="strategy"
+              className="bg-background border-border"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -89,6 +107,36 @@ export const ControlPanel = ({
             onValueChange={([value]) => onCustomersChange(value)}
             min={1}
             max={10}
+            step={1}
+            className="cursor-pointer"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex justify-between">
+            <Label className="text-foreground">Grid Rows</Label>
+            <span className="text-primary font-bold">{gridRows}</span>
+          </div>
+          <Slider
+            value={[gridRows]}
+            onValueChange={([value]) => onGridRowsChange(value)}
+            min={3}
+            max={15}
+            step={1}
+            className="cursor-pointer"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex justify-between">
+            <Label className="text-foreground">Grid Columns</Label>
+            <span className="text-primary font-bold">{gridCols}</span>
+          </div>
+          <Slider
+            value={[gridCols]}
+            onValueChange={([value]) => onGridColsChange(value)}
+            min={3}
+            max={15}
             step={1}
             className="cursor-pointer"
           />
