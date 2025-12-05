@@ -71,7 +71,7 @@ const GridVisualization = ({ gridData, onAnimationComplete }) => {
     const interval = setInterval(() => {
       if (stepIndex < steps.length) {
         const step = steps[stepIndex];
-        // Parse step to update truck positions
+        // Parse step to update truck positions (handles both delivery and return movements)
         if (step.includes("moved to")) {
           const match = step.match(/Truck (\d+) moved to \((\d+),(\d+)\)/);
           if (match) {

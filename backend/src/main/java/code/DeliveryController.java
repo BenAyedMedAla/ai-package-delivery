@@ -193,14 +193,29 @@ public class DeliveryController {
             totalNodes += result.nodesExpanded;
             totalDeliveries++;
 
-            // Update truck position
+            // Update truck position to customer location
             currentTruckPositions.set(truckIdx, goalPos);
 
             // Add delivery completion step
-            steps.add("Step " + steps.size() + ": Delivery completed for Customer " + customerIdx + " by Truck " + truckIdx + ", returning to Store " + truckIdx);
+            steps.add("Step " + steps.size() + ": Delivery completed for Customer " + customerIdx + " by Truck " + truckIdx);
 
-            // Truck returns to store
+            // Generate return path to store
             State storeLocation = ds.getStores().get(truckIdx);
+            steps.add("Step " + steps.size() + ": Truck " + truckIdx + " returning to Store " + truckIdx);
+            
+            ds.setPath(goalPos, storeLocation);
+            GenericSearch.SearchResult<State, Action> returnResult = GenericSearch.search(ds, strategy, ds.getH1(), ds.getH2());
+            
+            if (returnResult.cost != Double.POSITIVE_INFINITY) {
+                // Record return path execution steps
+                State returnCurrent = goalPos;
+                for (Action action : returnResult.actions) {
+                    returnCurrent = ds.result(returnCurrent, action);
+                    steps.add("Step " + steps.size() + ": Action = " + action + ", Truck " + truckIdx + " moved to (" + returnCurrent.x + "," + returnCurrent.y + ") returning to Store " + truckIdx);
+                }
+            }
+            
+            // Update truck position to store
             currentTruckPositions.set(truckIdx, storeLocation);
 
             deliveryNum++;
