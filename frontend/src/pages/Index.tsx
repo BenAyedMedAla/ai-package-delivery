@@ -22,6 +22,7 @@ interface GridData {
   stores: Position[];
   customers: Position[];
   tunnels: Tunnel[];
+  traffic: number[][];
 }
 
 interface Route {
@@ -91,7 +92,7 @@ interface AllStrategiesResponse {
 
 const Index = () => {
   const [selectedStrategy, setSelectedStrategy] = useState("BFS");
-  const [numTrucks, setNumTrucks] = useState(2);
+  const [numStores, setNumStores] = useState(2);
   const [numCustomers, setNumCustomers] = useState(3);
   const [gridRows, setGridRows] = useState(5);
   const [gridCols, setGridCols] = useState(5);
@@ -120,7 +121,7 @@ const Index = () => {
       console.log("Sending request to generate grid:", {
         rows: gridRows,
         columns: gridCols,
-        numStores: 2,
+        numStores: numStores,
         numCustomers: numCustomers,
       });
 
@@ -132,7 +133,7 @@ const Index = () => {
         body: JSON.stringify({
           rows: gridRows,
           columns: gridCols,
-          numStores: 2,
+          numStores: numStores,
           numCustomers: numCustomers,
         }),
       });
@@ -428,8 +429,8 @@ const Index = () => {
           <ControlPanel
             selectedStrategy={selectedStrategy}
             onStrategyChange={setSelectedStrategy}
-            numTrucks={numTrucks}
-            onTrucksChange={setNumTrucks}
+            numStores={numStores}
+            onStoresChange={setNumStores}
             numCustomers={numCustomers}
             onCustomersChange={setNumCustomers}
             gridRows={gridRows}

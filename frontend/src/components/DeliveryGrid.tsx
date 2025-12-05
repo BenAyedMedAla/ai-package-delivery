@@ -103,6 +103,26 @@ const parseGridData = (
     }
   });
 
+  // Apply traffic data
+  if (gridData.traffic && gridData.traffic.length > 0) {
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i < gridData.traffic.length && j < gridData.traffic[i].length) {
+          const trafficValue = gridData.traffic[i][j];
+          // Only apply traffic to road cells (not stores, customers, or tunnels)
+          if (grid[i][j].type === "road") {
+            if (trafficValue === 0) {
+              grid[i][j].type = "blocked";
+              grid[i][j].traffic = 0;
+            } else {
+              grid[i][j].traffic = trafficValue;
+            }
+          }
+        }
+      }
+    }
+  }
+
   return grid;
 };
 
@@ -131,6 +151,7 @@ interface GridData {
   stores: Position[];
   customers: Position[];
   tunnels: Tunnel[];
+  traffic: number[][];
 }
 
 interface DeliveryGridProps {

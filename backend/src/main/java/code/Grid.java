@@ -9,16 +9,18 @@ public class Grid {
     private List<Position> stores;
     private List<Position> customers;
     private List<TunnelDto> tunnels;
+    private List<List<Integer>> traffic;
 
     public Grid() {}
 
-    public Grid(int rows, int columns, List<List<String>> grid, List<Position> stores, List<Position> customers, List<TunnelDto> tunnels) {
+    public Grid(int rows, int columns, List<List<String>> grid, List<Position> stores, List<Position> customers, List<TunnelDto> tunnels, List<List<Integer>> traffic) {
         this.rows = rows;
         this.columns = columns;
         this.grid = grid;
         this.stores = stores;
         this.customers = customers;
         this.tunnels = tunnels;
+        this.traffic = traffic;
     }
 
     // Getters and setters
@@ -39,4 +41,7 @@ public class Grid {
 
     public List<TunnelDto> getTunnels() { return tunnels; }
     public void setTunnels(List<TunnelDto> tunnels) { this.tunnels = tunnels; }
+
+    public List<List<Integer>> getTraffic() { return traffic; }
+    public void setTraffic(List<List<Integer>> traffic) { this.traffic = traffic; }
 }

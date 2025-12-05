@@ -14,8 +14,8 @@ import { Play, RotateCcw, Sparkles } from "lucide-react";
 interface ControlPanelProps {
   selectedStrategy: string;
   onStrategyChange: (strategy: string) => void;
-  numTrucks: number;
-  onTrucksChange: (num: number) => void;
+  numStores: number;
+  onStoresChange: (num: number) => void;
   numCustomers: number;
   onCustomersChange: (num: number) => void;
   gridRows: number;
@@ -40,8 +40,8 @@ const strategies = [
 export const ControlPanel = ({
   selectedStrategy,
   onStrategyChange,
-  numTrucks,
-  onTrucksChange,
+  numStores,
+  onStoresChange,
   numCustomers,
   onCustomersChange,
   gridRows,
@@ -84,14 +84,14 @@ export const ControlPanel = ({
 
         <div className="space-y-3">
           <div className="flex justify-between">
-            <Label className="text-foreground">Number of Trucks</Label>
-            <span className="text-primary font-bold">{numTrucks}</span>
+            <Label className="text-foreground">Number of Stores</Label>
+            <span className="text-primary font-bold">{numStores}</span>
           </div>
           <Slider
-            value={[numTrucks]}
-            onValueChange={([value]) => onTrucksChange(value)}
+            value={[numStores]}
+            onValueChange={([value]) => onStoresChange(value)}
             min={1}
-            max={5}
+            max={3}
             step={1}
             className="cursor-pointer"
           />
