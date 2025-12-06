@@ -94,25 +94,47 @@ public class DeliveryController {
                     String stratInput = strat.name().toLowerCase();
                     String displayName = strat.getDisplayName();
 
-                    long start = System.nanoTime();
+                    // Measure memory and CPU
+                    System.gc();
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+
+                    Runtime runtime = Runtime.getRuntime();
+                    ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+
+                    long memBefore = runtime.totalMemory() - runtime.freeMemory();
+                    long cpuBefore = threadBean.getCurrentThreadCpuTime();
+                    long startTime = System.nanoTime();
+
                     String result = DeliverySearch.solve(initialState, traffic, stratInput, false);
-                    long time = (System.nanoTime() - start) / 1_000_000;
+
+                    long endTime = System.nanoTime();
+                    long timeMs = (endTime - startTime) / 1_000_000;
+                    long memAfter = runtime.totalMemory() - runtime.freeMemory();
+                    long memUsed = (memAfter - memBefore) / 1024; // KB
+                    long cpuAfter = threadBean.getCurrentThreadCpuTime();
+                    long cpuUsed = (cpuAfter - cpuBefore) / 1_000_000; // ms
 
                     // Parse result
                     String[] lines = result.split("\n");
                     int totalNodes = 0;
                     int totalCost = 0;
+                    int deliveries = 0;
                     for (String line : lines) {
                         if (!line.trim().isEmpty()) {
                             String[] parts = line.split(";");
                             if (parts.length >= 4) {
                                 totalCost += Integer.parseInt(parts[2]);
                                 totalNodes += Integer.parseInt(parts[3]);
+                                deliveries++;
                             }
                         }
                     }
 
-                    results.add(new StrategyResult(displayName, time, totalNodes, totalCost));
+                    results.add(new StrategyResult(displayName, timeMs, totalNodes, totalCost, deliveries, memUsed, cpuUsed));
                 }
 
                 return ResponseEntity.ok(new StrategyResults(results));

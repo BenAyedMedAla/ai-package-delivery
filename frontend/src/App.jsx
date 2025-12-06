@@ -100,8 +100,11 @@ function App() {
                     <tr>
                       <th>Strategy</th>
                       <th>Time (ms)</th>
+                      <th>Deliveries</th>
                       <th>Nodes</th>
                       <th>Cost</th>
+                      <th>Memory (KB)</th>
+                      <th>CPU (ms)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -109,8 +112,11 @@ function App() {
                       <tr key={index}>
                         <td className="strategy-name">{strat.strategy}</td>
                         <td>{strat.timeMs}</td>
+                        <td>{strat.deliveries}</td>
                         <td>{strat.nodesExpanded}</td>
                         <td className="cost-cell">{strat.totalCost}</td>
+                        <td>{strat.memoryKB}</td>
+                        <td>{strat.cpuMs}</td>
                       </tr>
                     ))}
                   </tbody>

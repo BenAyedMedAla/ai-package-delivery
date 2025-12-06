@@ -5,14 +5,20 @@ public class StrategyResult {
     private long timeMs;
     private int nodesExpanded;
     private int totalCost;
+    private int deliveries;
+    private long memoryKB;
+    private long cpuMs;
 
     public StrategyResult() {}
 
-    public StrategyResult(String strategy, long timeMs, int nodesExpanded, int totalCost) {
+    public StrategyResult(String strategy, long timeMs, int nodesExpanded, int totalCost, int deliveries, long memoryKB, long cpuMs) {
         this.strategy = strategy;
         this.timeMs = timeMs;
         this.nodesExpanded = nodesExpanded;
         this.totalCost = totalCost;
+        this.deliveries = deliveries;
+        this.memoryKB = memoryKB;
+        this.cpuMs = cpuMs;
     }
 
     // Getters and setters
@@ -27,4 +33,13 @@ public class StrategyResult {
 
     public int getTotalCost() { return totalCost; }
     public void setTotalCost(int totalCost) { this.totalCost = totalCost; }
+
+    public int getDeliveries() { return deliveries; }
+    public void setDeliveries(int deliveries) { this.deliveries = deliveries; }
+
+    public long getMemoryKB() { return memoryKB; }
+    public void setMemoryKB(long memoryKB) { this.memoryKB = memoryKB; }
+
+    public long getCpuMs() { return cpuMs; }
+    public void setCpuMs(long cpuMs) { this.cpuMs = cpuMs; }
 }
