@@ -152,6 +152,7 @@ public class DeliveryController {
         // Get assignments
         DeliveryPlanner planner = new DeliveryPlanner(ds.getStores(), ds.getCustomers(), ds.getTrucks(), ds, strategy);
         List<int[]> assignments = planner.assign();
+        List<String> warnings = planner.getWarnings();
 
         // Track current truck positions
         List<State> currentTruckPositions = new ArrayList<>(ds.getTrucks());
@@ -238,6 +239,6 @@ public class DeliveryController {
         metrics.put("memoryKB", memUsed);
         metrics.put("cpuMs", cpuUsed);
 
-        return new StrategyExecutionResult(steps, metrics);
+        return new StrategyExecutionResult(steps, metrics, warnings);
     }
 }

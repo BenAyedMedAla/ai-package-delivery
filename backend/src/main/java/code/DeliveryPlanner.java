@@ -17,21 +17,24 @@ public class DeliveryPlanner {
     private final List<State> trucks;
     private final DeliverySearch ds;
     private final Strategy strategy;
-    
+
     // ✅ Cache for path computations
     private Map<String, String> pathCache;
+    // Warnings for unreachable customers
+    private List<String> warnings;
 
     public DeliveryPlanner(List<State> stores,
-                           List<State> customers,
-                           List<State> trucks,
-                           DeliverySearch ds,
-                           Strategy strategy) {
+                            List<State> customers,
+                            List<State> trucks,
+                            DeliverySearch ds,
+                            Strategy strategy) {
         this.stores = stores;
         this.customers = customers;
         this.trucks = trucks;
         this.ds = ds;
         this.strategy = strategy;
         this.pathCache = new HashMap<>();
+        this.warnings = new ArrayList<>();
     }
 
     /**
@@ -69,12 +72,11 @@ public class DeliveryPlanner {
         // For each customer, find truck with minimum cost
         for (int c = 0; c < customers.size(); c++) {
             int bestTruck = findBestTruck(costMatrix, c);
-            
+
             if (bestTruck != -1) {
                 assignments.add(new int[]{bestTruck, c});
             } else {
-                System.err.println("[WARNING] Customer " + c + 
-                    " at " + customers.get(c) + " is unreachable by all trucks!");
+                warnings.add("Customer " + c + " at " + customers.get(c) + " is unreachable by all trucks!");
             }
         }
         
@@ -258,6 +260,13 @@ public class DeliveryPlanner {
         System.out.println("============================\n");
     }
     
+    /**
+     * Get the list of warnings generated during assignment.
+     */
+    public List<String> getWarnings() {
+        return warnings;
+    }
+
     /**
      * Clear the path cache (useful for testing different strategies)
      */

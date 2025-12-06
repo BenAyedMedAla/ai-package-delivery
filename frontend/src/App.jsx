@@ -36,7 +36,7 @@ function App() {
       const result = await chooseStrategy(strategyRequest);
       if (result.steps) {
         // Single strategy with steps
-        setStrategyResult({ steps: result.steps, metrics: result.metrics });
+        setStrategyResult({ steps: result.steps, metrics: result.metrics, warnings: result.warnings });
         setGridData((prev) => ({ ...prev, steps: result.steps }));
       } else if (result.results) {
         // All strategies - backend returns { results: [...] }
@@ -58,6 +58,17 @@ function App() {
       <header>
         <h1>AI Package Delivery Visualization</h1>
       </header>
+
+      {strategyResult?.warnings && strategyResult.warnings.length > 0 && (
+        <div className="warnings">
+          <h2>⚠️ Warnings</h2>
+          <ul>
+            {strategyResult.warnings.map((warning, index) => (
+              <li key={index}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="main-content">
         <div className="controls-panel">
