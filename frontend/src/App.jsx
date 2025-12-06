@@ -36,7 +36,11 @@ function App() {
       const result = await chooseStrategy(strategyRequest);
       if (result.steps) {
         // Single strategy with steps
-        setStrategyResult({ steps: result.steps, metrics: result.metrics, warnings: result.warnings });
+        setStrategyResult({
+          steps: result.steps,
+          metrics: result.metrics,
+          warnings: result.warnings,
+        });
         setGridData((prev) => ({ ...prev, steps: result.steps }));
       } else if (result.results) {
         // All strategies - backend returns { results: [...] }
@@ -70,7 +74,7 @@ function App() {
         </div>
       )}
 
-      <div className="main-content">
+      <div className="top-row">
         <div className="controls-panel">
           <Controls
             onGenerateGrid={handleGenerateGrid}
@@ -79,13 +83,15 @@ function App() {
           />
         </div>
 
-        <div className="grid-panel">
+        <div className="visual-section">
           <GridVisualization
             gridData={gridData}
             onAnimationComplete={handleAnimationComplete}
           />
         </div>
+      </div>
 
+      <div className="results-row">
         <div className="results-panel">
           <Metrics
             metrics={strategyResult?.metrics}
