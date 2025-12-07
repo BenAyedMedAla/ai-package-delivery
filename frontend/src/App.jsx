@@ -25,33 +25,35 @@ function App() {
     }
   };
 
-  const handleChooseStrategy = async (strategyRequest) => {
-    if (!gridData) {
-      setError("Please generate a grid first");
-      return;
+ const handleChooseStrategy = async (strategyRequest) => {
+  if (!gridData) {
+    setError("Please generate a grid first");
+    return;
+  }
+  setIsLoading(true);
+  setError(null);
+  try {
+    const result = await chooseStrategy(strategyRequest);
+    console.log("Backend response:", result); // ADD THIS LINE
+    
+    if (result.steps) {
+      // Single strategy with steps
+      setStrategyResult({
+        steps: result.steps,
+        metrics: result.metrics,
+        warnings: result.warnings,
+      });
+      setGridData((prev) => ({ ...prev, steps: result.steps }));
+    } else if (result.results) {
+      console.log("All strategies data:", result.results); // ADD THIS TOO
+      setStrategyResult({ allStrategies: result.results });
     }
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await chooseStrategy(strategyRequest);
-      if (result.steps) {
-        // Single strategy with steps
-        setStrategyResult({
-          steps: result.steps,
-          metrics: result.metrics,
-          warnings: result.warnings,
-        });
-        setGridData((prev) => ({ ...prev, steps: result.steps }));
-      } else if (result.results) {
-        // All strategies - backend returns { results: [...] }
-        setStrategyResult({ allStrategies: result.results });
-      }
-    } catch (err) {
-      setError("Failed to run strategy: " + err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  } catch (err) {
+    setError("Failed to run strategy: " + err.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleAnimationComplete = () => {
     console.log("Animation completed");

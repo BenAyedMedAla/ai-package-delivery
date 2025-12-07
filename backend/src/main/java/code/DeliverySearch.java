@@ -1,6 +1,12 @@
 package code;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class DeliverySearch extends GenericSearch implements Problem<State, Action> {
@@ -472,7 +478,7 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         }
 
         List<Tunnel> tunnels = new ArrayList<>();
-        int numTunnels = rand.nextInt(3);
+        int numTunnels = rand.nextInt(5);
         for (int i = 0; i < numTunnels; i++) {
             int x1, y1, x2, y2;
             do {
