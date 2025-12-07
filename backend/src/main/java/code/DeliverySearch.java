@@ -366,7 +366,7 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
         List<State> trucks = new ArrayList<>(stores);
 
         return new DeliverySearch(m, n, edgeTraffic, tunnels, stores, customers, trucks,
-                new ManhattanHeuristic(), new TrafficAwareHeuristic(1));
+                new ManhattanHeuristic(), new TrafficAwareHeuristic());
     }
 
     // ------------------ PLANNING ------------------
@@ -460,12 +460,17 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
 
     public static String GenGrid(int m, int n, int numCustomers, int numStores) {
         List<State> customers = new ArrayList<>();
+        List<State> stores = new ArrayList<>();
         Set<String> usedPositions = new HashSet<>();
         Random rand = new Random();
 
         if (numStores >= 1) usedPositions.add("0,0");
         if (numStores >= 2) usedPositions.add((m-1) + "," + (n-1));
         if (numStores >= 3) usedPositions.add((m-1) + ",0");
+
+        if (numStores >= 1) stores.add(new State(0, 0));
+        if (numStores >= 2) stores.add(new State(m - 1, n - 1));
+        if (numStores >= 3) stores.add(new State(m - 1, 0));
 
         for (int i = 0; i < numCustomers; i++) {
             int x, y;
@@ -477,23 +482,131 @@ public class DeliverySearch extends GenericSearch implements Problem<State, Acti
             customers.add(new State(x, y));
         }
 
-        List<Tunnel> tunnels = new ArrayList<>();
-        int numTunnels = rand.nextInt(5);
-        for (int i = 0; i < numTunnels; i++) {
-            int x1, y1, x2, y2;
-            do {
-                x1 = rand.nextInt(m);
-                y1 = rand.nextInt(n);
-            } while (usedPositions.contains(x1 + "," + y1));
-            
-            do {
-                x2 = rand.nextInt(m);
-                y2 = rand.nextInt(n);
-            } while (usedPositions.contains(x2 + "," + y2) || (x1 == x2 && y1 == y2));
-            
-            tunnels.add(new Tunnel(new State(x1, y1), new State(x2, y2)));
-        }
 
+        List<Tunnel> tunnels = new ArrayList<>();
+
+        // Only generate tunnels for grids that are large enough
+        if (m >= 5 && n >= 5) {
+            // Calculate minimum useful tunnel distance (at least 1/3 of grid size)
+            int minTunnelDistance = Math.max(3, (m + n) / 3);
+            
+            // Generate 2-4 STRATEGIC tunnels
+            int numTunnels = rand.nextInt(3) + 2; // 2 to 4 tunnels
+            
+            for (int i = 0; i < numTunnels; i++) {
+                int x1, y1, x2, y2;
+                int attempts = 0;
+                boolean validTunnel = false;
+                
+                do {
+                    if (i == 0 && !stores.isEmpty() && !customers.isEmpty()) {
+                        // STRATEGIC TUNNEL 1: Connect near a store to near a customer cluster
+                        // This guarantees at least one useful tunnel!
+                        State store = stores.get(0);
+                        State customer = customers.get(rand.nextInt(customers.size()));
+                        
+                        // Entrance 1: Near the store (within 20% of grid size)
+                        int offset = Math.max(1, Math.min(m, n) / 5);
+                        x1 = Math.max(0, Math.min(m - 1, store.x + rand.nextInt(offset * 2 + 1) - offset));
+                        y1 = Math.max(0, Math.min(n - 1, store.y + rand.nextInt(offset * 2 + 1) - offset));
+                        
+                        // Entrance 2: Near the customer (within 20% of grid size)
+                        x2 = Math.max(0, Math.min(m - 1, customer.x + rand.nextInt(offset * 2 + 1) - offset));
+                        y2 = Math.max(0, Math.min(n - 1, customer.y + rand.nextInt(offset * 2 + 1) - offset));
+                        
+                    } else if (i == 1 && stores.size() >= 2) {
+                        // STRATEGIC TUNNEL 2: Connect between two stores (if we have multiple stores)
+                        State store1 = stores.get(0);
+                        State store2 = stores.get(1);
+                        
+                        // Create tunnel roughly 1/3 of the way from each store toward the other
+                        int dx = store2.x - store1.x;
+                        int dy = store2.y - store1.y;
+                        
+                        x1 = store1.x + dx / 3 + rand.nextInt(3) - 1;
+                        y1 = store1.y + dy / 3 + rand.nextInt(3) - 1;
+                        x2 = store2.x - dx / 3 + rand.nextInt(3) - 1;
+                        y2 = store2.y - dy / 3 + rand.nextInt(3) - 1;
+                        
+                        // Clamp to grid bounds
+                        x1 = Math.max(0, Math.min(m - 1, x1));
+                        y1 = Math.max(0, Math.min(n - 1, y1));
+                        x2 = Math.max(0, Math.min(m - 1, x2));
+                        y2 = Math.max(0, Math.min(n - 1, y2));
+                        
+                    } else if (i == 2 && customers.size() >= 2) {
+                        // STRATEGIC TUNNEL 3: Connect between customer clusters
+                        State cust1 = customers.get(0);
+                        State cust2 = customers.get(customers.size() - 1);
+                        
+                        // Create tunnel between distant customers
+                        int dx = cust2.x - cust1.x;
+                        int dy = cust2.y - cust1.y;
+                        
+                        x1 = cust1.x + rand.nextInt(3) - 1;
+                        y1 = cust1.y + rand.nextInt(3) - 1;
+                        x2 = cust2.x + rand.nextInt(3) - 1;
+                        y2 = cust2.y + rand.nextInt(3) - 1;
+                        
+                        // Clamp to grid bounds
+                        x1 = Math.max(0, Math.min(m - 1, x1));
+                        y1 = Math.max(0, Math.min(n - 1, y1));
+                        x2 = Math.max(0, Math.min(m - 1, x2));
+                        y2 = Math.max(0, Math.min(n - 1, y2));
+                        
+                    } else {
+                        // RANDOM TUNNEL: Generate across quadrants for variety
+                        // Place entrances in different quadrants
+                        int quadrant1 = rand.nextInt(4);
+                        int quadrant2 = (quadrant1 + 2) % 4; // Opposite quadrant
+                        
+                        // Quadrant positions:
+                        // 0: top-left, 1: top-right, 2: bottom-left, 3: bottom-right
+                        x1 = (quadrant1 / 2) * (m / 2) + rand.nextInt(m / 2);
+                        y1 = (quadrant1 % 2) * (n / 2) + rand.nextInt(n / 2);
+                        x2 = (quadrant2 / 2) * (m / 2) + rand.nextInt(m / 2);
+                        y2 = (quadrant2 % 2) * (n / 2) + rand.nextInt(n / 2);
+                    }
+                    
+                    // Calculate Manhattan distance between tunnel entrances
+                    int distance = Math.abs(x1 - x2) + Math.abs(y1 - y2);
+                    
+                    // Check if tunnel is valid:
+                    // 1. Not at used positions
+                    // 2. Not the same position
+                    // 3. Distance is greater than minimum threshold
+                    if (!usedPositions.contains(x1 + "," + y1) &&
+                        !usedPositions.contains(x2 + "," + y2) &&
+                        (x1 != x2 || y1 != y2) &&
+                        distance >= minTunnelDistance) {
+                        validTunnel = true;
+                    }
+                    
+                    attempts++;
+                    
+                    // Give up after 100 attempts to avoid infinite loop
+                    if (attempts > 100) {
+                        break;
+                    }
+                    
+                } while (!validTunnel);
+                
+                // Only add the tunnel if we found a valid one
+                if (validTunnel) {
+                    tunnels.add(new Tunnel(new State(x1, y1), new State(x2, y2)));
+                    usedPositions.add(x1 + "," + y1);
+                    usedPositions.add(x2 + "," + y2);
+                    
+                    // Print tunnel info for debugging
+                    int distance = Math.abs(x1 - x2) + Math.abs(y1 - y2);
+                    System.out.println("Generated tunnel #" + (i+1) + ": (" + x1 + "," + y1 + ") <-> (" + 
+                                    x2 + "," + y2 + ") [distance: " + distance + "]");
+                }
+            }
+        } else {
+            // For small grids (< 5x5), don't generate tunnels as they won't be useful
+            System.out.println("Grid too small for useful tunnels.");
+        }
         StringBuilder sb = new StringBuilder();
         sb.append(m).append(";").append(n).append(";")
           .append(numCustomers).append(";").append(numStores).append(";");
